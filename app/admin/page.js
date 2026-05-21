@@ -101,7 +101,7 @@ export default function AdminDashboard() {
               type="text"
               placeholder="Client Legal Name" 
               required 
-              className="bg-slate-950 border border-slate-800 rounded-xl p-3Safe outline-none focus:border-blue-500 text-white" 
+              className="bg-slate-950 border border-slate-800 rounded-xl p-3 outline-none focus:border-blue-500 text-white" 
             />
             <input 
               id="address"
