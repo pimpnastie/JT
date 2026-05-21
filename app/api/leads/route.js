@@ -33,6 +33,7 @@ async function initializeTables(sql) {
   `;
 
   try {
+    await sql`ALTER TABLE deal_trackers ADD COLUMN IF NOT EXISTS lead_id INTEGER;`; // ADD THIS
     await sql`ALTER TABLE deal_trackers ADD COLUMN IF NOT EXISTS deal_side TEXT DEFAULT 'Seller';`;
     await sql`ALTER TABLE deal_trackers ADD COLUMN IF NOT EXISTS price_parameter NUMERIC DEFAULT 0;`;
     await sql`ALTER TABLE deal_trackers ADD COLUMN IF NOT EXISTS commission_rate NUMERIC DEFAULT 2.5;`;
