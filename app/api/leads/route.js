@@ -1,6 +1,7 @@
 import { neon } from '@neondatabase/serverless';
 
 async function initializeTables(sql) {
+  // 1. Core Top-Level Tables
   await sql`
     CREATE TABLE IF NOT EXISTS leads (
       id SERIAL PRIMARY KEY,
@@ -24,6 +25,51 @@ async function initializeTables(sql) {
       last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `;
+
+  // 2. Advanced Child Meta Tables (With Cascading Deletes)
+  await sql`
+    CREATE TABLE IF NOT EXISTS deal_notes (
+      id SERIAL PRIMARY KEY,
+      deal_id INTEGER REFERENCES deal_trackers(id) ON DELETE CASCADE,
+      author TEXT DEFAULT 'admin',
+      content TEXT NOT NULL,
+      is_private BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS deal_tasks (
+      id SERIAL PRIMARY KEY,
+      deal_id INTEGER REFERENCES deal_trackers(id) ON DELETE CASCADE,
+      stage TEXT NOT NULL,
+      title TEXT NOT NULL,
+      is_complete BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS deal_documents (
+      id SERIAL PRIMARY KEY,
+      deal_id INTEGER REFERENCES deal_trackers(id) ON DELETE CASCADE,
+      stage TEXT,
+      file_name TEXT NOT NULL,
+      file_url TEXT NOT NULL,
+      uploaded_by TEXT DEFAULT 'admin',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS deal_emails (
+      id SERIAL PRIMARY KEY,
+      deal_id INTEGER REFERENCES deal_trackers(id) ON DELETE CASCADE,
+      subject TEXT,
+      from_address TEXT,
+      snippet TEXT,
+      received_at TIMESTAMP,
+      stage TEXT,
+      gmail_message_id TEXT
+    );
+  `;
 }
 
 export async function POST(request) {
@@ -32,17 +78,12 @@ export async function POST(request) {
     const sql = neon(process.env.DATABASE_URL);
     await initializeTables(sql);
 
-    // FIX: Appended 'RETURNING id' to grab the serial key on creation
     if (body.action === 'create_deal') {
       const result = await sql(
         'INSERT INTO deal_trackers (client_name, property_address, current_stage) VALUES ($1, $2, $3) RETURNING id;',
         [body.client_name, body.property_address, body.current_stage]
       );
-      
-      return new Response(JSON.stringify({ 
-        status: 'deal created', 
-        id: result[0].id 
-      }), { 
+      return new Response(JSON.stringify({ status: 'deal created', id: result[0].id }), { 
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -62,7 +103,6 @@ export async function PUT(request) {
   try {
     const { id, current_stage, is_at_risk, risk_explanation } = await request.json();
     const sql = neon(process.env.DATABASE_URL);
-    
     await sql(
       'UPDATE deal_trackers SET current_stage = $1, is_at_risk = $2, risk_explanation = $3, last_updated = CURRENT_TIMESTAMP WHERE id = $4;',
       [current_stage, is_at_risk, risk_explanation, id]
