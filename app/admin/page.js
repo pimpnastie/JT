@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { 
   Database, User, Activity, Sparkles, MessageSquare, Briefcase, ExternalLink, 
   Settings2, Lock, Users, UserPlus, Save, DollarSign, Percent, BookOpen, 
-  Receipt, ClipboardList, LogOut, CheckCircle, Building2, MapPin, AlertCircle, Plus
+  Receipt, ClipboardList, LogOut, CheckCircle, Building2, MapPin, AlertCircle, Plus, Trash2
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -46,6 +46,10 @@ export default function AdminDashboard() {
     { id: 2, description: 'Facebook Targeted Geofence Ad Runs - Open House', amount: 75.00, category: 'Marketing', date: '2026-05-10' }
   ]);
 
+  // Autocomplete Dropdown State Hooks
+  const [municipalitySuggestions, setMunicipalitySuggestions] = useState([]);
+  const [showDropdownId, setShowDropdownId] = useState(null);
+
   useEffect(() => {
     const sessionToken = localStorage.getItem('admin_session_active');
     const savedAgentName = localStorage.getItem('active_agent_identity');
@@ -57,17 +61,13 @@ export default function AdminDashboard() {
       setIsAuthenticated(true);
       setCurrentUser(savedAgentName);
     }
-    if (savedAgents) {
-      setAgentsList(JSON.parse(savedAgents));
-    }
+    if (savedAgents) setAgentsList(JSON.parse(savedAgents));
     if (savedCeCourses) {
       const courses = JSON.parse(savedCeCourses);
       setCeCourses(courses);
       setCeHours(prev => ({ ...prev, completed: courses.reduce((sum, c) => sum + c.hours, 0) }));
     }
-    if (savedExpenses) {
-      setExpenses(JSON.parse(savedExpenses));
-    }
+    if (savedExpenses) setExpenses(JSON.parse(savedExpenses));
 
     fetchClusterData();
     setCheckingAuth(false);
@@ -80,7 +80,6 @@ export default function AdminDashboard() {
         const payload = await res.json();
         setData({ leads: payload.leads || [], deals: payload.deals || [] });
         
-        // Initialize editing state buffer with database baseline metrics
         const initialEditBuffer = {};
         (payload.deals || []).forEach(deal => {
           initialEditBuffer[deal.id] = {
@@ -90,7 +89,8 @@ export default function AdminDashboard() {
             commission_rate: deal.commission_rate || 2.5,
             assigned_agent: deal.assigned_agent || 'Jeremy Thieroff',
             is_at_risk: deal.is_at_risk || false,
-            risk_explanation: deal.risk_explanation || ''
+            risk_explanation: deal.risk_explanation || '',
+            municipality: deal.municipality || ''
           };
         });
         setEditingDeals(initialEditBuffer);
@@ -99,6 +99,24 @@ export default function AdminDashboard() {
       console.error("Data pipeline load fault:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSearchMunicipality = async (val, targetKeyId) => {
+    handleRowInputChange(targetKeyId, 'municipality', val);
+    if (val.trim().length < 2) {
+      setMunicipalitySuggestions([]);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/municipalities?q=${encodeURIComponent(val)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMunicipalitySuggestions(data.municipalities || []);
+        setShowDropdownId(targetKeyId);
+      }
+    } catch (err) {
+      console.error("Autocomplete fetch failed:", err);
     }
   };
 
@@ -119,34 +137,25 @@ export default function AdminDashboard() {
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     const token = passInput.trim().toLowerCase();
-    
-    if (token === "jeremyadmin2026") {
-      logUserIn('Jeremy Thieroff');
-    } else if (token === "partneradmin2026") {
-      logUserIn('Team Partner');
-    } else if (token.endsWith('admin2026')) {
+    if (token === "jeremyadmin2026") logUserIn('Jeremy Thieroff');
+    else if (token === "partneradmin2026") logUserIn('Team Partner');
+    else if (token.endsWith('admin2026')) {
       const parsedAgentName = token.replace('admin2026', '').replace('_', ' ');
       const matched = agentsList.find(a => a.toLowerCase().replace(/\s+/g, '') === parsedAgentName);
-      if (matched) {
-        logUserIn(matched);
-      } else {
-        setAuthError(true);
-      }
+      if (matched) logUserIn(matched);
+      else setAuthError(true);
     } else {
       setAuthError(true);
     }
   };
 
-  // Onboard new realtors to the operational environment dynamically from the WebUI
   const handleAddAgentToRegistry = (e) => {
     e.preventDefault();
     const newName = e.target.agent_name.value.trim();
     if (!newName || agentsList.includes(newName)) return;
-
     const updatedList = [...agentsList, newName];
     setAgentsList(updatedList);
     localStorage.setItem('crm_registered_agents', JSON.stringify(updatedList));
-    alert(`Success: ${newName} added. Passkey generated: ${newName.toLowerCase().replace(/\s+/g, '_')}admin2026`);
     e.target.reset();
   };
 
@@ -171,10 +180,8 @@ export default function AdminDashboard() {
     if (res.ok) { e.target.reset(); fetchClusterData(); }
   };
 
-  // Clean Native Inline Lead Conversion Trigger Handshake
   const handleConvertLeadSubmit = async (leadId) => {
     if (!conversionAddress.trim()) return;
-
     const res = await fetch('/api/leads', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -193,18 +200,13 @@ export default function AdminDashboard() {
     }
   };
 
-  // State-driven change logging engine for row inputs
   const handleRowInputChange = (dealId, fieldName, value) => {
     setEditingDeals(prev => ({
       ...prev,
-      [dealId]: {
-        ...prev[dealId],
-        [fieldName]: value
-      }
+      [dealId]: { ...prev[dealId], [fieldName]: value }
     }));
   };
 
-  // EXPLICIT ROW SAVE FUNCTION UTILIZING COMPONENT STATE BUFFER
   const handleSaveRowData = async (dealId) => {
     const dealState = editingDeals[dealId];
     if (!dealState) return;
@@ -220,7 +222,8 @@ export default function AdminDashboard() {
         commission_rate: parseFloat(dealState.commission_rate) || 0,
         assigned_agent: dealState.assigned_agent,
         is_at_risk: dealState.is_at_risk,
-        risk_explanation: dealState.risk_explanation
+        risk_explanation: dealState.risk_explanation,
+        municipality: dealState.municipality
       })
     });
 
@@ -230,51 +233,34 @@ export default function AdminDashboard() {
     }
   };
 
-  // CE Course Adding Utilities with LocalStorage Tracking
+  const handleDeleteRow = async (dealId) => {
+    if (!confirm("Are you sure you want to permanently delete this escrow ledger row?")) return;
+    const res = await fetch(`/api/leads?id=${dealId}`, { method: 'DELETE' });
+    if (res.ok) fetchClusterData();
+  };
+
   const handleAddCeCourse = (e) => {
     e.preventDefault();
-    const newCourse = {
-      id: Date.now(),
-      name: e.target.c_name.value,
-      hours: parseFloat(e.target.c_hours.value) || 0,
-      date: e.target.c_date.value
-    };
+    const newCourse = { id: Date.now(), name: e.target.c_name.value, hours: parseFloat(e.target.c_hours.value) || 0, date: e.target.c_date.value };
     const updatedCourses = [newCourse, ...ceCourses];
     setCeCourses(updatedCourses);
     localStorage.setItem('crm_ce_courses', JSON.stringify(updatedCourses));
-    
-    const completedHours = updatedCourses.reduce((sum, c) => sum + c.hours, 0);
-    setCeHours({ ...ceHours, completed: completedHours });
+    setCeHours({ ...ceHours, completed: updatedCourses.reduce((sum, c) => sum + c.hours, 0) });
     e.target.reset();
   };
 
-  // Expense Appending Utilities with LocalStorage Tracking
   const handleAddExpense = (e) => {
     e.preventDefault();
-    const newExp = {
-      id: Date.now(),
-      description: e.target.e_desc.value,
-      amount: parseFloat(e.target.e_amt.value) || 0,
-      category: e.target.e_cat.value,
-      date: e.target.e_date.value
-    };
+    const newExp = { id: Date.now(), description: e.target.e_desc.value, amount: parseFloat(e.target.e_amt.value) || 0, category: e.target.e_cat.value, date: e.target.e_date.value };
     const updatedExpenses = [newExp, ...expenses];
     setExpenses(updatedExpenses);
     localStorage.setItem('crm_expenses', JSON.stringify(updatedExpenses));
     e.target.reset();
   };
 
-  // Unified Workspace String Normalization Filtering Matchers
   const normalizedUser = (currentUser || 'Jeremy Thieroff').trim().toLowerCase();
-  
-  const personalDeals = data.deals.filter(d => 
-    (d.assigned_agent || 'Jeremy Thieroff').trim().toLowerCase() === normalizedUser
-  );
-  
-  const teamDeals = data.deals.filter(d => 
-    (d.assigned_agent || 'Jeremy Thieroff').trim().toLowerCase() !== normalizedUser
-  );
-  
+  const personalDeals = data.deals.filter(d => (d.assigned_agent || 'Jeremy Thieroff').trim().toLowerCase() === normalizedUser);
+  const teamDeals = data.deals.filter(d => (d.assigned_agent || 'Jeremy Thieroff').trim().toLowerCase() !== normalizedUser);
   const activeDealsDisplay = viewTab === 'mine' ? personalDeals : teamDeals;
 
   const listingDeals = activeDealsDisplay.filter(d => (d?.deal_side || 'Seller') === 'Seller');
@@ -283,71 +269,78 @@ export default function AdminDashboard() {
   return (
     <div className="bg-slate-950 min-h-screen text-slate-100 font-sans flex flex-col lg:flex-row">
       
-      {/* 🧭 NAVIGATION SIDEBAR CONTAINER */}
+      {/* 🧭 NAVIGATION SIDEBAR */}
       <div className="w-full lg:w-64 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800/80 p-6 space-y-8 shrink-0">
         <div className="space-y-1">
           <div className="text-sm font-black tracking-tight flex items-center gap-2 uppercase"><Database className="text-blue-500" /> Elite CRM Desk</div>
           <p className="text-[11px] text-slate-500 font-medium">Rep: <span className="text-slate-300 font-bold">{currentUser}</span></p>
         </div>
-
         <nav className="flex flex-col gap-1.5 text-xs font-bold text-slate-400">
           <button onClick={() => setActiveModule('pipeline')} className={`w-full text-left p-3 rounded-xl transition flex items-center gap-2 ${activeModule === 'pipeline' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}><Briefcase size={16}/> Transaction Pipelines</button>
           <button onClick={() => setActiveModule('ce_tracker')} className={`w-full text-left p-3 rounded-xl transition flex items-center gap-2 ${activeModule === 'ce_tracker' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}><BookOpen size={16}/> PA Continuing Ed (CE)</button>
           <button onClick={() => setActiveModule('expenses')} className={`w-full text-left p-3 rounded-xl transition flex items-center gap-2 ${activeModule === 'expenses' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}><Receipt size={16}/> Business Expenses</button>
           <button onClick={() => setActiveModule('agent_mgmt')} className={`w-full text-left p-3 rounded-xl transition flex items-center gap-2 ${activeModule === 'agent_mgmt' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}><UserPlus size={16}/> Office Team Directory</button>
         </nav>
-
         <button onClick={handleLogout} className="w-full mt-12 bg-slate-950 border border-slate-800/80 p-2.5 rounded-xl text-[10px] font-black uppercase text-red-400 hover:bg-red-500/10 transition flex items-center justify-center gap-1.5"><LogOut size={12}/> Lock Session</button>
       </div>
 
-      {/* MAIN DATA MODULE HUB DISPLAY GRID */}
+      {/* MAIN CONTENT VIEWPORT */}
       <div className="flex-1 p-8 space-y-8 overflow-x-hidden">
         
-        {/* MODULE 1: TRANSACTIONS & ESCROW TABLES */}
         {activeModule === 'pipeline' && (
           <div className="space-y-8">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
-              <h2 className="text-xs font-black uppercase text-blue-400 flex items-center gap-2"><Sparkles size={14}/> Provision Active Client Escrow File</h2>
-              <form onSubmit={handleCreateDeal} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-xs">
-                <input id="client" name="client" required placeholder="Client Legal Name" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
-                <input id="address" name="address" required placeholder="Property Address" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
-                <select id="stage" name="stage" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-blue-400 font-bold outline-none">
-                  <option>Mutual Acceptance</option>
-                  <option>Home Inspection Period</option>
-                  <option>Bank Appraisal Flight</option>
-                  <option>Title Clear Search</option>
-                  <option>Clear to Close 🎉</option>
-                </select>
-                <select id="deal_side" name="deal_side" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-indigo-400 font-bold outline-none">
-                  <option value="Seller">Seller (Listing)</option>
-                  <option value="Buyer">Buyer (Representation)</option>
-                </select>
-                <div className="flex gap-2">
-                  <input id="price" name="price" type="number" placeholder="Price ($)" className="w-1/2 bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
-                  <input id="comm" name="comm" type="number" step="0.1" placeholder="Comm %" defaultValue="2.5" className="w-1/2 bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
-                </div>
-                <button type="submit" className="lg:col-span-5 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase py-3 rounded-xl transition tracking-wider">Launch New Tracker Portfolio</button>
-              </form>
+            
+            {/* 🛠️ TWO INDEPENDENT CREATION FORMS (Sellers vs Buyers) */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-blue-600" />
+                <h2 className="text-xs font-black uppercase text-blue-400 flex items-center gap-2"><Building2 size={14}/> List a New Property (Sellers Side)</h2>
+                <form onSubmit={handleCreateDeal} className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <input type="hidden" name="deal_side" value="Seller" />
+                  <input type="hidden" name="stage" value="Mutual Acceptance" />
+                  <input name="client" required placeholder="Sellers Legal Full Name" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                  <input name="address" required placeholder="Listing Property Street Address" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                  <input name="price" type="number" placeholder="Listing Target Price ($)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                  <input name="comm" type="number" step="0.1" placeholder="Brokerage Fee split %" defaultValue="2.5" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                  <button type="submit" className="sm:col-span-2 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase py-3 rounded-xl transition">Open Exclusive Right to Sell Listing</button>
+                </form>
+              </div>
+
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-600" />
+                <h2 className="text-xs font-black uppercase text-indigo-400 flex items-center gap-2"><Briefcase size={14}/> Register a New Purchaser (Buyers Side)</h2>
+                <form onSubmit={handleCreateDeal} className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <input type="hidden" name="deal_side" value="Buyer" />
+                  <input type="hidden" name="stage" value="Mutual Acceptance" />
+                  <input name="client" required placeholder="Buyers Legal Full Name" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                  <input name="address" required placeholder="Target Geographical Criteria / Neighborhood" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                  <input name="price" type="number" placeholder="Max Pre-Approval Limit ($)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                  <input name="comm" type="number" step="0.1" placeholder="Buyer Agent Commission %" defaultValue="2.5" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                  <button type="submit" className="sm:col-span-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase py-3 rounded-xl transition">Execute Buyer Agency Agreement</button>
+                </form>
+              </div>
             </div>
 
+            {/* Selection Tabs */}
             <div className="flex border-b border-slate-900 gap-2">
               <button onClick={() => setViewTab('mine')} className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${viewTab === 'mine' ? 'border-blue-500 text-blue-400 bg-blue-500/5' : 'border-transparent text-slate-500'}`}>My Desk Operations ({personalDeals.length})</button>
               <button onClick={() => setViewTab('team')} className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${viewTab === 'team' ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' : 'border-transparent text-slate-500'}`}>Team Operational Pipeline ({teamDeals.length})</button>
             </div>
 
+            {/* GRIDS */}
             <div className="space-y-8">
               <div className="space-y-3">
                 <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5"><Building2 size={14} className="text-blue-500"/> Listing Portfolio (Sellers)</h3>
-                <DealPipelineTable dealsArray={listingDeals} editingDeals={editingDeals} agentsList={agentsList} loading={loading} onInputChange={handleRowInputChange} onSave={handleSaveRowData} />
+                <DealPipelineTable dealsArray={listingDeals} editingDeals={editingDeals} agentsList={agentsList} loading={loading} onInputChange={handleRowInputChange} onSave={handleSaveRowData} onDelete={handleDeleteRow} municipalitySuggestions={municipalitySuggestions} showDropdownId={showDropdownId} handleSearchMunicipality={handleSearchMunicipality} setMunicipalitySuggestions={setMunicipalitySuggestions} setShowDropdownId={setShowDropdownId} />
               </div>
               
               <div className="space-y-3">
                 <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5"><Briefcase size={14} className="text-indigo-400"/> Escrow Pipeline (Buyers)</h3>
-                <DealPipelineTable dealsArray={escrowDeals} editingDeals={editingDeals} agentsList={agentsList} loading={loading} onInputChange={handleRowInputChange} onSave={handleSaveRowData} />
+                <DealPipelineTable dealsArray={escrowDeals} editingDeals={editingDeals} agentsList={agentsList} loading={loading} onInputChange={handleRowInputChange} onSave={handleSaveRowData} onDelete={handleDeleteRow} municipalitySuggestions={municipalitySuggestions} showDropdownId={showDropdownId} handleSearchMunicipality={handleSearchMunicipality} setMunicipalitySuggestions={setMunicipalitySuggestions} setShowDropdownId={setShowDropdownId} />
               </div>
             </div>
 
-            {/* Inbound Lead Inbox Streams */}
+            {/* Leads Inbox */}
             <div className="space-y-3">
               <h3 className="text-xs font-black uppercase text-slate-400 flex items-center gap-1.5"><MessageSquare size={14} className="text-emerald-500" /> Universal Central Incoming Leads</h3>
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 divide-y divide-slate-800/40 shadow-xl">
@@ -366,10 +359,8 @@ export default function AdminDashboard() {
                           <button onClick={() => setConvertingLeadId(l.id)} className="bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 px-3 py-2 rounded-xl text-emerald-400 font-black uppercase text-[10px] tracking-wider transition shrink-0">Claim & Convert Client →</button>
                         )}
                       </div>
-
-                      {/* Clean Native Inline Conversion Card instead of alert prompts */}
                       {convertingLeadId === l.id && (
-                        <div className="bg-slate-950 p-4 border border-slate-800 rounded-xl flex flex-col sm:flex-row gap-3 items-end animate-fade-in">
+                        <div className="bg-slate-950 p-4 border border-slate-800 rounded-xl flex flex-col sm:flex-row gap-3 items-end">
                           <div className="space-y-1 flex-1 w-full">
                             <label className="text-[9px] uppercase font-black tracking-wider text-slate-500 flex items-center gap-1"><AlertCircle size={10}/> Establish Conversion Target Address</label>
                             <input type="text" value={conversionAddress} onChange={(e) => setConversionAddress(e.target.value)} placeholder="Enter Property escrow target string parameters..." className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-xs text-white outline-none focus:border-emerald-500" />
@@ -385,17 +376,17 @@ export default function AdminDashboard() {
                 )}
               </div>
             </div>
+
           </div>
         )}
 
-        {/* MODULE 2: PERSISTENT CONTINUING EDUCATION MODULE */}
+        {/* CE Modules */}
         {activeModule === 'ce_tracker' && (
           <div className="space-y-6 max-w-4xl">
             <div className="border-b border-slate-900 pb-3">
               <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-2"><BookOpen className="text-blue-500"/> Personal Continuing Education Suite</h2>
               <p className="text-xs text-slate-400">Monitor Pennsylvania State Real Estate Commission biennial compliance benchmarks dynamically.</p>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center space-y-1 shadow-md">
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Hours Documented</span>
@@ -410,19 +401,17 @@ export default function AdminDashboard() {
                 <div className="text-2xl font-black text-amber-500">{ceHours.deadLine}</div>
               </div>
             </div>
-
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-300">Log State-Approved Completed Course Credit</h3>
               <form onSubmit={handleAddCeCourse} className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                <input name="c_name" required placeholder="Course Subject Title (e.g., Code of Ethics Update)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
-                <input name="c_hours" type="number" step="0.1" required placeholder="Credit Hours (e.g., 3.5)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                <input name="c_name" required placeholder="Course Subject Title" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                <input name="c_hours" type="number" step="0.1" required placeholder="Credit Hours" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
                 <div className="flex gap-2">
                   <input name="c_date" type="date" required className="w-1/2 bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-400 outline-none" />
                   <button type="submit" className="w-1/2 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-wider rounded-xl transition">Log Credit</button>
                 </div>
               </form>
             </div>
-
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl">
               <table className="w-full text-left text-xs">
                 <thead>
@@ -446,14 +435,13 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* MODULE 3: PERSISTENT BUSINESS EXPENSES LEDGER */}
+        {/* Expenses Modules */}
         {activeModule === 'expenses' && (
           <div className="space-y-6 max-w-4xl">
             <div className="border-b border-slate-900 pb-3">
               <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-2"><Receipt className="text-blue-500"/> Independent Business Expense Ledger</h2>
               <p className="text-xs text-slate-400">Track structural operational expenses, marketing capital outlays, and vehicle tracking metrics for Schedule-C writeoffs.</p>
             </div>
-
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
               <h3 className="text-xs font-black uppercase text-slate-300">Log New Outbound Business Capital Entry</h3>
               <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
@@ -471,7 +459,6 @@ export default function AdminDashboard() {
                 </div>
               </form>
             </div>
-
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl">
               <table className="w-full text-left text-xs">
                 <thead>
@@ -501,14 +488,13 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* MODULE 4: OFFICE TEAM REGISTRY SECTION */}
+        {/* Agent Registry */}
         {activeModule === 'agent_mgmt' && (
           <div className="space-y-6 max-w-xl">
             <div className="border-b border-slate-900 pb-3">
               <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-2"><UserPlus className="text-blue-500"/> Office Team Brokerage Provisioner</h2>
               <p className="text-xs text-slate-400">Authorize additional real estate agents onto the WebUI infrastructure cleanly. Generates passkeys automatically.</p>
             </div>
-
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
               <h3 className="text-xs font-black uppercase text-slate-300">Register Onbound Team Agent Profile</h3>
               <form onSubmit={handleAddAgentToRegistry} className="space-y-4 text-xs">
@@ -519,7 +505,6 @@ export default function AdminDashboard() {
                 <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-wider py-3 rounded-xl transition text-[11px]">Generate Network Passkey</button>
               </form>
             </div>
-
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl space-y-2">
               <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 px-2">Authorized System Representatives</h4>
               <div className="divide-y divide-slate-800/40 text-xs font-bold text-white">
@@ -542,19 +527,16 @@ export default function AdminDashboard() {
 // ==========================================
 // 🛡️ EXTRACTED STANDALONE PIPELINE COMPONENT
 // ==========================================
-function DealPipelineTable({ dealsArray, editingDeals, agentsList, loading, onInputChange, onSave }) {
-  if (loading) {
-    return <div className="text-center py-6 text-slate-500 font-bold uppercase animate-pulse text-xs">Querying Postgres Cloud Modules...</div>;
-  }
-  
-  if (dealsArray.length === 0) {
-    return <div className="text-center py-6 text-slate-600 font-bold uppercase text-[10px] bg-slate-900/40 border border-slate-800/60 rounded-xl">No active properties inside this funnel mapping segment.</div>;
-  }
+function DealPipelineTable({ 
+  dealsArray, editingDeals, agentsList, loading, onInputChange, onSave, onDelete,
+  municipalitySuggestions, showDropdownId, handleSearchMunicipality, setMunicipalitySuggestions, setShowDropdownId 
+}) {
+  if (loading) return <div className="text-center py-6 text-slate-500 font-bold uppercase animate-pulse text-xs">Querying Postgres Cloud Modules...</div>;
+  if (dealsArray.length === 0) return <div className="text-center py-6 text-slate-600 font-bold uppercase text-[10px] bg-slate-900/40 border border-slate-800/60 rounded-xl">No active properties inside this funnel mapping segment.</div>;
 
   return (
-    /* 📱 Outer Scroll Wrapper for Mobile Responsiveness */
     <div className="w-full overflow-x-auto rounded-2xl border border-slate-800 shadow-2xl bg-slate-900">
-      <table className="w-full text-left text-xs border-collapse min-w-[950px]">
+      <table className="w-full text-left text-xs border-collapse min-w-[1000px]">
         <thead>
           <tr className="bg-slate-950 text-slate-400 uppercase font-black text-[10px] tracking-widest border-b border-slate-800">
             <th className="p-3">Client / Listing Context</th>
@@ -562,7 +544,7 @@ function DealPipelineTable({ dealsArray, editingDeals, agentsList, loading, onIn
             <th className="p-3">Milestone Escrow Phase</th>
             <th className="p-3">Risk Configuration</th>
             <th className="p-3">Representative Owner</th>
-            <th className="p-3 text-center">Save / Actions</th>
+            <th className="p-3 text-center">Save / Actions / Delete</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800/40">
@@ -574,17 +556,51 @@ function DealPipelineTable({ dealsArray, editingDeals, agentsList, loading, onIn
               current_stage: deal.current_stage || 'Mutual Acceptance',
               is_at_risk: deal.is_at_risk || false,
               risk_explanation: deal.risk_explanation || '',
-              assigned_agent: deal.assigned_agent || 'Jeremy Thieroff'
+              assigned_agent: deal.assigned_agent || 'Jeremy Thieroff',
+              municipality: deal.municipality || ''
             };
 
             return (
               <tr key={deal.id} className="hover:bg-slate-950/20 transition">
+                {/* Dynamic Autocomplete Typeahead Cell Integrated Directly inside Component Scope */}
                 <td className="p-3">
                   <div className="font-black text-white text-sm">{deal.client_name}</div>
-                  <div className="text-slate-400 font-medium mt-0.5 flex items-center gap-1"><MapPin size={12} className="text-slate-600"/>{deal.property_address}</div>
+                  <div className="text-slate-400 font-medium mt-0.5 flex items-center gap-1">
+                    <MapPin size={12} className="text-slate-600"/>
+                    {deal.property_address}
+                  </div>
+                  
+                  <div className="relative w-full max-w-[200px] mt-1.5">
+                    <input 
+                      type="text"
+                      value={currentEditState.municipality || ''}
+                      onChange={(e) => handleSearchMunicipality(e.target.value, deal.id)}
+                      onFocus={() => setShowDropdownId(deal.id)}
+                      onBlur={() => setTimeout(() => setShowDropdownId(null), 250)}
+                      className="text-[11px] font-bold uppercase tracking-wider bg-slate-950 border border-slate-800 rounded-lg p-2 text-indigo-400 outline-none w-full"
+                      placeholder="Assign PA Municipality..."
+                    />
+                    
+                    {showDropdownId === deal.id && municipalitySuggestions.length > 0 && (
+                      <div className="absolute left-0 right-0 mt-1 bg-slate-950 border border-slate-800 rounded-xl max-h-48 overflow-y-auto z-50 shadow-2xl text-[10px] font-bold text-slate-300 divide-y divide-slate-900/60">
+                        {municipalitySuggestions.map((suggestion, index) => (
+                          <div 
+                            key={index}
+                            onMouseDown={() => {
+                              onInputChange(deal.id, 'municipality', suggestion.municipality);
+                              setMunicipalitySuggestions([]);
+                              setShowDropdownId(null);
+                            }}
+                            className="p-2.5 hover:bg-blue-600 hover:text-white cursor-pointer transition duration-100"
+                          >
+                            {suggestion.label}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </td>
                 
-                {/* ⚡ Controlled Inputs Tied Strictly to Component Edit State Buffer */}
                 <td className="p-3 space-y-1">
                   <select 
                     value={currentEditState.deal_side} 
@@ -663,10 +679,11 @@ function DealPipelineTable({ dealsArray, editingDeals, agentsList, loading, onIn
                 </td>
                 
                 <td className="p-3">
-                  <div className="flex items-center justify-center gap-2">
-                    <button onClick={() => onSave(deal.id)} className="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white p-2 rounded-lg border border-emerald-500/20 transition" title="Save Dynamic Local Buffer Changes"><Save size={14}/></button>
+                  <div className="flex items-center justify-center gap-1.5">
+                    <button onClick={() => onSave(deal.id)} className="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white p-2 rounded-lg border border-emerald-500/20 transition" title="Save Row Changes"><Save size={13}/></button>
                     <a href={`/tracker/${deal.id}`} target="_blank" rel="noreferrer" className="bg-slate-950 border border-slate-800 p-2 rounded-lg text-blue-400 font-bold uppercase text-[10px] transition hover:border-slate-700">Portal</a>
                     <Link href={`/tracker/${deal.id}/edit`} className="bg-slate-950 border border-slate-800 p-2 rounded-lg text-amber-500 font-bold uppercase text-[10px] transition hover:border-slate-700">Open</Link>
+                    <button onClick={() => onDelete(deal.id)} className="bg-red-600/10 hover:bg-red-600 border border-red-500/20 p-2 rounded-lg text-red-400 hover:text-white transition" title="Delete Escrow Tracker Row"><Trash2 size={13}/></button>
                   </div>
                 </td>
               </tr>
