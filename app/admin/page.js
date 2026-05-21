@@ -2,13 +2,14 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Database, User, Activity, AlertCircle, Sparkles, ShieldAlert, Mail, Phone, MessageSquare } from 'lucide-react';
+import { Database, User, Activity, AlertCircle, Sparkles, Mail, Phone, MessageSquare, ClipboardList } from 'lucide-react';
 
 export default function AdminDashboard() {
   const router = useRouter();
   const [data, setData] = useState({ leads: [], deals: [] });
   const [loading, setLoading] = useState(true);
 
+  // Queries the multi-table Postgres database pipeline on launch
   const fetchClusterData = async () => {
     try {
       const res = await fetch('/api/leads');
@@ -27,6 +28,7 @@ export default function AdminDashboard() {
     fetchClusterData(); 
   }, []);
 
+  // Grabs the input values cleanly and handles the routing redirect
   const handleCreateDeal = async (e) => {
     e.preventDefault();
     const payload = {
@@ -45,14 +47,15 @@ export default function AdminDashboard() {
       if (res.ok) { 
         const resData = await res.json();
         e.target.reset(); 
-        // FIX: Triggers immediate clean programmatic router routing transition
-        router.push(`/tracker/${resData.id}`);
+        // Instantly routes Jeremy directly to the new deal processing suite
+        router.push(`/tracker/${resData.id}/edit`);
       }
     } catch (err) {
       console.error("Failed to execute transaction push:", err);
     }
   };
 
+  // Direct asynchronous inline status modifier for phase choices and risk shields
   const handleUpdateDeal = async (id, stage, risk, explanation) => {
     try {
       const res = await fetch('/api/leads', {
@@ -77,18 +80,20 @@ export default function AdminDashboard() {
     <div className="bg-slate-950 min-h-screen text-slate-100 p-8 font-sans">
       <div className="max-w-6xl mx-auto space-y-12">
         
+        {/* Navigation Control Banner */}
         <div className="flex justify-between items-center border-b border-slate-900 pb-6">
-          <div>
+          <div className="space-y-1">
             <h1 className="text-2xl font-black uppercase tracking-tight flex items-center gap-2">
               <Database className="text-blue-500" /> Executive Platform Control
             </h1>
-            <p className="text-xs text-slate-400">Manage pipeline security parameters and live client status desks</p>
+            <p className="text-xs text-slate-400">Manage pipeline parameters, document lockers, and live transaction desks</p>
           </div>
           <Link href="/" className="text-xs font-bold bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl text-slate-400 hover:text-white transition">
             ← Exit View
           </Link>
         </div>
 
+        {/* Provision Tracker Input Suite */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
           <h2 className="text-sm font-black uppercase text-blue-400 flex items-center gap-2">
             <Sparkles size={16}/> Provision Active Transaction Tracker
@@ -130,16 +135,17 @@ export default function AdminDashboard() {
           </form>
         </div>
 
+        {/* Live Active Transaction Table with controls */}
         <div className="space-y-4">
           <h2 className="text-sm font-black uppercase tracking-wider text-slate-400 flex items-center gap-2">
             <Activity size={16}/> Live Operational Desks
           </h2>
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 overflow-x-auto">
             {loading ? (
-              <div className="text-center py-6 text-slate-500 animate-pulse font-bold text-xs uppercase tracking-widest">Loading desks...</div>
+              <div className="text-center py-6 text-slate-500 animate-pulse font-bold text-xs uppercase tracking-widest">Querying database cloud clusters...</div>
             ) : data.deals && data.deals.length === 0 ? (
               <div className="text-center py-12 text-slate-500 font-bold uppercase tracking-widest text-[11px]">
-                No operational files active in cluster cache memory.
+                No operational files active in cluster database memory.
               </div>
             ) : (
               <table className="w-full text-left text-xs">
@@ -153,16 +159,25 @@ export default function AdminDashboard() {
                 <tbody className="divide-y divide-slate-800/40">
                   {data.deals && data.deals.map((deal) => (
                     <tr key={deal.id} className="hover:bg-slate-950/20 transition">
-                      {/* FIX: Integrated explicit 'Open Tracker' navigation portal hooks directly into the row matrix */}
-                      <td className="p-4 space-y-1">
+                      <td className="p-4">
                         <div className="font-bold text-white text-sm">{deal.client_name}</div>
-                        <div className="text-slate-500 font-medium">{deal.property_address}</div>
-                        <Link 
-                          href={`/tracker/${deal.id}`}
-                          className="text-blue-400 text-[10px] font-black uppercase tracking-wider hover:text-blue-300 inline-block pt-1 underline"
-                        >
-                          Open Live Client Portal →
-                        </Link>
+                        <div className="text-slate-500 font-medium mt-0.5">{deal.property_address}</div>
+                        
+                        {/* Nav Link Matrix Hooks */}
+                        <div className="pt-2 flex gap-4 text-[10px] font-black uppercase tracking-wider">
+                          <Link 
+                            href={`/tracker/${deal.id}`}
+                            className="text-blue-400 hover:text-blue-300 underline"
+                          >
+                            Open Client View Portal →
+                          </Link>
+                          <Link 
+                            href={`/tracker/${deal.id}/edit`}
+                            className="text-amber-500 hover:text-amber-400 underline flex items-center gap-0.5"
+                          >
+                            ⚙️ Process File & Documents
+                          </Link>
+                        </div>
                       </td>
                       <td className="p-4">
                         <select 
@@ -187,7 +202,7 @@ export default function AdminDashboard() {
                             {deal.is_at_risk ? "⚠️ Escalation Active" : "✓ Shield Normative"}
                           </button>
                           <input 
-                            placeholder="Detail unreasonable criteria or bad agent friction..." 
+                            placeholder="Detail unreasonable criteria or agent friction..." 
                             defaultValue={deal.risk_explanation || ''} 
                             onBlur={(e) => handleUpdateDeal(deal.id, deal.current_stage, deal.is_at_risk, e.target.value)}
                             className="bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-300 outline-none text-xs w-full max-w-xs focus:border-slate-700"
@@ -202,6 +217,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* Communication Pipeline Intake Feed */}
         <div className="space-y-4">
           <h2 className="text-sm font-black uppercase tracking-wider text-slate-400 flex items-center gap-2">
             <User size={16}/> Communication Pipeline Streams
@@ -209,7 +225,7 @@ export default function AdminDashboard() {
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 divide-y divide-slate-800/40">
             {data.leads && data.leads.length === 0 ? (
               <div className="text-center py-12 text-slate-500 font-bold uppercase tracking-widest text-[11px]">
-                No lead intake packets tracked inside cloud storage metrics yet.
+                No intake packets tracked inside cloud storage metrics yet.
               </div>
             ) : (
               data.leads && data.leads.map((l) => (
