@@ -1,13 +1,14 @@
 "use client";
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Database, User, Activity, AlertCircle, Sparkles, CheckCircle2, ShieldAlert, Mail, Phone, MessageSquare } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Database, User, Activity, AlertCircle, Sparkles, ShieldAlert, Mail, Phone, MessageSquare } from 'lucide-react';
 
 export default function AdminDashboard() {
+  const router = useRouter();
   const [data, setData] = useState({ leads: [], deals: [] });
   const [loading, setLoading] = useState(true);
 
-  // Queries the multi-table Postgres pipeline on launch
   const fetchClusterData = async () => {
     try {
       const res = await fetch('/api/leads');
@@ -26,7 +27,6 @@ export default function AdminDashboard() {
     fetchClusterData(); 
   }, []);
 
-  // Corrected to find the element name arrays explicitly
   const handleCreateDeal = async (e) => {
     e.preventDefault();
     const payload = {
@@ -43,15 +43,16 @@ export default function AdminDashboard() {
         body: JSON.stringify(payload)
       });
       if (res.ok) { 
+        const resData = await res.json();
         e.target.reset(); 
-        fetchClusterData(); 
+        // FIX: Triggers immediate clean programmatic router routing transition
+        router.push(`/tracker/${resData.id}`);
       }
     } catch (err) {
       console.error("Failed to execute transaction push:", err);
     }
   };
 
-  // Direct asynchronous structural cell modifier
   const handleUpdateDeal = async (id, stage, risk, explanation) => {
     try {
       const res = await fetch('/api/leads', {
@@ -76,7 +77,6 @@ export default function AdminDashboard() {
     <div className="bg-slate-950 min-h-screen text-slate-100 p-8 font-sans">
       <div className="max-w-6xl mx-auto space-y-12">
         
-        {/* Navigation Control Banner */}
         <div className="flex justify-between items-center border-b border-slate-900 pb-6">
           <div>
             <h1 className="text-2xl font-black uppercase tracking-tight flex items-center gap-2">
@@ -89,7 +89,6 @@ export default function AdminDashboard() {
           </Link>
         </div>
 
-        {/* Provision Tracker Input Suite */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
           <h2 className="text-sm font-black uppercase text-blue-400 flex items-center gap-2">
             <Sparkles size={16}/> Provision Active Transaction Tracker
@@ -114,7 +113,7 @@ export default function AdminDashboard() {
             <select 
               id="stage"
               name="stage" 
-              className="bg-slate-950 border border-slate-800 rounded-xl p-3Safe outline-none focus:border-blue-500 text-blue-400 font-bold"
+              className="bg-slate-950 border border-slate-800 rounded-xl p-3 outline-none focus:border-blue-500 text-blue-400 font-bold"
             >
               <option>Mutual Acceptance</option>
               <option>Home Inspection Period</option>
@@ -131,13 +130,14 @@ export default function AdminDashboard() {
           </form>
         </div>
 
-        {/* Live Active Transaction Table with row controls */}
         <div className="space-y-4">
           <h2 className="text-sm font-black uppercase tracking-wider text-slate-400 flex items-center gap-2">
             <Activity size={16}/> Live Operational Desks
           </h2>
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 overflow-x-auto">
-            {data.deals && data.deals.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-6 text-slate-500 animate-pulse font-bold text-xs uppercase tracking-widest">Loading desks...</div>
+            ) : data.deals && data.deals.length === 0 ? (
               <div className="text-center py-12 text-slate-500 font-bold uppercase tracking-widest text-[11px]">
                 No operational files active in cluster cache memory.
               </div>
@@ -153,9 +153,16 @@ export default function AdminDashboard() {
                 <tbody className="divide-y divide-slate-800/40">
                   {data.deals && data.deals.map((deal) => (
                     <tr key={deal.id} className="hover:bg-slate-950/20 transition">
-                      <td className="p-4">
+                      {/* FIX: Integrated explicit 'Open Tracker' navigation portal hooks directly into the row matrix */}
+                      <td className="p-4 space-y-1">
                         <div className="font-bold text-white text-sm">{deal.client_name}</div>
-                        <div className="text-slate-500 font-medium mt-0.5">{deal.property_address}</div>
+                        <div className="text-slate-500 font-medium">{deal.property_address}</div>
+                        <Link 
+                          href={`/tracker/${deal.id}`}
+                          className="text-blue-400 text-[10px] font-black uppercase tracking-wider hover:text-blue-300 inline-block pt-1 underline"
+                        >
+                          Open Live Client Portal →
+                        </Link>
                       </td>
                       <td className="p-4">
                         <select 
@@ -195,7 +202,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Regular Leads Pipeline Layer */}
         <div className="space-y-4">
           <h2 className="text-sm font-black uppercase tracking-wider text-slate-400 flex items-center gap-2">
             <User size={16}/> Communication Pipeline Streams
