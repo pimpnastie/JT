@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
-import Link from 'next/nav';
+import Link from 'next/link'; // ✓ CHANGED FROM 'next/nav' TO 'next/link'
 import { useRouter } from 'next/navigation';
 import { Database, User, Activity, AlertCircle, Sparkles, Mail, Phone, MessageSquare, Briefcase, ExternalLink, Settings2, Lock, ShieldCheck } from 'lucide-react';
 
