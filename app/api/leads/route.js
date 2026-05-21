@@ -202,6 +202,7 @@ export async function GET() {
       } 
     });
   } catch (error) {
+    console.error('GET /api/leads error:', error.message); // ADD THIS LINE
     return new Response(JSON.stringify({ error: error.message }), { 
       status: 500, 
       headers: { 'Content-Type': 'application/json' }
