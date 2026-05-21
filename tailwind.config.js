@@ -5,7 +5,11 @@ module.exports = {
     "./components/**/*.{js,ts,jsx,tsx,mdx}"
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        cbnavy: '#00263E', // Official luxury brand navy color matching his broker profile
+      }
+    },
   },
   plugins: [],
 }

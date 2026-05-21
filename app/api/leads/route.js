@@ -5,7 +5,6 @@ export async function POST(request) {
     const { name, email, phone, message } = await request.json();
     const sql = neon(process.env.DATABASE_URL);
     
-    // Automatically construct relational structural schema if missing
     await sql`
       CREATE TABLE IF NOT EXISTS leads (
         id SERIAL PRIMARY KEY,
@@ -13,12 +12,11 @@ export async function POST(request) {
         email TEXT NOT NULL,
         phone TEXT,
         message TEXT,
-        status TEXT DEFAULT 'New',
+        status TEXT DEFAULT 'New Enquiry',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `;
 
-    // Parametrized query passing arguments array safely to avoid Python interpolation collision
     await sql('INSERT INTO leads (name, email, phone, message) VALUES ($1, $2, $3, $4);', [
       name,
       email,

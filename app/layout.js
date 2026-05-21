@@ -1,14 +1,14 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'The Thieroff Team | Coldwell Banker Realty',
-  description: 'Professional real estate services across the North Hills and Greater Pittsburgh area.',
+  title: 'The Thieroff Team | Coldwell Banker Realty Pittsburgh',
+  description: 'Expert residential insights and property listings across Bellevue, Ross Township, Avalon, and the Greater North Hills market.',
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body className="bg-slate-50 antialiased">{children}</body>
+    <html lang="en" className="scroll-smooth">
+      <body className="bg-[#f8fafc] text-slate-900 antialiased">{children}</body>
     </html>
   );
 }
