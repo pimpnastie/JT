@@ -1,7 +1,11 @@
 "use client";
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Database, User, Activity, Sparkles, MessageSquare, Briefcase, ExternalLink, Settings2, Building2, Lock, Users, UserPlus, CheckCircle, Save, DollarSign, Percent, BookOpen, Receipt, ClipboardList, LogOut } from 'lucide-react';
+import { 
+  Database, User, Activity, Sparkles, MessageSquare, Briefcase, ExternalLink, 
+  Settings2, Lock, Users, UserPlus, Save, DollarSign, Percent, BookOpen, 
+  Receipt, ClipboardList, LogOut, CheckCircle, Building2, MapPin, AlertCircle, Plus
+} from 'lucide-react';
 
 export default function AdminDashboard() {
   // Authentication & Identity States
@@ -11,25 +15,32 @@ export default function AdminDashboard() {
   const [authError, setAuthError] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  // Dynamic Layout Navigation
+  // Dynamic Layout Navigation Modules
   const [activeModule, setActiveModule] = useState('pipeline'); // 'pipeline', 'agent_mgmt', 'ce_tracker', 'expenses'
   const [viewTab, setViewTab] = useState('mine'); // 'mine' vs 'team'
 
-  // Master Core Data Storage
+  // Central Database Pipeline Storage
   const [data, setData] = useState({ leads: [], deals: [] });
   const [loading, setLoading] = useState(true);
   
-  // Custom Dynamic Agent Registry (Stored locally or queried)
+  // Custom Dynamic Office Registry
   const [agentsList, setAgentsList] = useState(['Jeremy Thieroff', 'Team Partner']);
 
-  // PA CE Tracker Mock Data States (Per Agent Personalization)
+  // Dynamic Inline Row-Level Editing State Buffer Engine
+  const [editingDeals, setEditingDeals] = useState({});
+
+  // Lead Conversion Inline Form Tracking Buffer
+  const [convertingLeadId, setConvertingLeadId] = useState(null);
+  const [conversionAddress, setConversionAddress] = useState('');
+
+  // Persistent PA CE Tracker Data Structures
   const [ceHours, setCeHours] = useState({ completed: 6, required: 14, deadLine: 'May 31, 2026' });
   const [ceCourses, setCeCourses] = useState([
     { id: 1, name: 'PA Real Estate Core Law & Rules', hours: 3.5, date: '2025-11-12' },
     { id: 2, name: 'Fair Housing Mandate Course', hours: 2.5, date: '2026-02-18' }
   ]);
 
-  // Personal Business Expense Tracking States
+  // Persistent Tax Deduction Business Expense Ledger Data Structures
   const [expenses, setExpenses] = useState([
     { id: 1, description: 'West Penn MLS Quarterly Assessment Fees', amount: 145.00, category: 'MLS Dues', date: '2026-04-01' },
     { id: 2, description: 'Facebook Targeted Geofence Ad Runs - Open House', amount: 75.00, category: 'Marketing', date: '2026-05-10' }
@@ -39,6 +50,8 @@ export default function AdminDashboard() {
     const sessionToken = localStorage.getItem('admin_session_active');
     const savedAgentName = localStorage.getItem('active_agent_identity');
     const savedAgents = localStorage.getItem('crm_registered_agents');
+    const savedCeCourses = localStorage.getItem('crm_ce_courses');
+    const savedExpenses = localStorage.getItem('crm_expenses');
     
     if (sessionToken === 'true' && savedAgentName) {
       setIsAuthenticated(true);
@@ -47,6 +60,15 @@ export default function AdminDashboard() {
     if (savedAgents) {
       setAgentsList(JSON.parse(savedAgents));
     }
+    if (savedCeCourses) {
+      const courses = JSON.parse(savedCeCourses);
+      setCeCourses(courses);
+      setCeHours(prev => ({ ...prev, completed: courses.reduce((sum, c) => sum + c.hours, 0) }));
+    }
+    if (savedExpenses) {
+      setExpenses(JSON.parse(savedExpenses));
+    }
+
     fetchClusterData();
     setCheckingAuth(false);
   }, []);
@@ -57,33 +79,26 @@ export default function AdminDashboard() {
       if (res.ok) {
         const payload = await res.json();
         setData({ leads: payload.leads || [], deals: payload.deals || [] });
+        
+        // Initialize editing state buffer with database baseline metrics
+        const initialEditBuffer = {};
+        (payload.deals || []).forEach(deal => {
+          initialEditBuffer[deal.id] = {
+            current_stage: deal.current_stage || 'Mutual Acceptance',
+            deal_side: deal.deal_side || 'Seller',
+            price_parameter: deal.price_parameter || 0,
+            commission_rate: deal.commission_rate || 2.5,
+            assigned_agent: deal.assigned_agent || 'Jeremy Thieroff',
+            is_at_risk: deal.is_at_risk || false,
+            risk_explanation: deal.risk_explanation || ''
+          };
+        });
+        setEditingDeals(initialEditBuffer);
       }
     } catch (err) {
       console.error("Data pipeline load fault:", err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleLoginSubmit = async (e) => {
-    e.preventDefault();
-    const token = passInput.trim().toLowerCase();
-    
-    if (token === "jeremyadmin2026") {
-      logUserIn('Jeremy Thieroff');
-    } else if (token === "partneradmin2026") {
-      logUserIn('Team Partner');
-    } else if (token.endsWith('admin2026')) {
-      // Dynamic fallback processing for custom onboarded agent string passkeys
-      const parsedAgentName = token.replace('admin2026', '').replace('_', ' ');
-      const matched = agentsList.find(a => a.toLowerCase().replace(/\s+/g, '') === parsedAgentName);
-      if (matched) {
-        logUserIn(matched);
-      } else {
-        setAuthError(true);
-      }
-    } else {
-      setAuthError(true);
     }
   };
 
@@ -99,6 +114,27 @@ export default function AdminDashboard() {
     localStorage.removeItem('admin_session_active');
     localStorage.removeItem('active_agent_identity');
     setIsAuthenticated(false);
+  };
+
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    const token = passInput.trim().toLowerCase();
+    
+    if (token === "jeremyadmin2026") {
+      logUserIn('Jeremy Thieroff');
+    } else if (token === "partneradmin2026") {
+      logUserIn('Team Partner');
+    } else if (token.endsWith('admin2026')) {
+      const parsedAgentName = token.replace('admin2026', '').replace('_', ' ');
+      const matched = agentsList.find(a => a.toLowerCase().replace(/\s+/g, '') === parsedAgentName);
+      if (matched) {
+        logUserIn(matched);
+      } else {
+        setAuthError(true);
+      }
+    } else {
+      setAuthError(true);
+    }
   };
 
   // Onboard new realtors to the operational environment dynamically from the WebUI
@@ -135,9 +171,9 @@ export default function AdminDashboard() {
     if (res.ok) { e.target.reset(); fetchClusterData(); }
   };
 
-  const handleConvertLead = async (leadId) => {
-    const propertyTarget = prompt("Enter Target Property Escrow Location or Search Parameter Criteria:");
-    if (!propertyTarget) return;
+  // Clean Native Inline Lead Conversion Trigger Handshake
+  const handleConvertLeadSubmit = async (leadId) => {
+    if (!conversionAddress.trim()) return;
 
     const res = await fetch('/api/leads', {
       method: 'POST',
@@ -145,36 +181,46 @@ export default function AdminDashboard() {
       body: JSON.stringify({
         action: 'convert_lead',
         lead_id: leadId,
-        property_address: propertyTarget,
+        property_address: conversionAddress,
         deal_side: 'Buyer',
         assigned_agent: currentUser
       })
     });
-    if (res.ok) fetchClusterData();
+    if (res.ok) {
+      setConvertingLeadId(null);
+      setConversionAddress('');
+      fetchClusterData();
+    }
   };
 
-  // EXPLICIT ROW SAVE FUNCTION FOR MASTER TRANSACTION ROWS
-  const handleSaveRowData = async (dealId, rowRef) => {
-    const stage = document.getElementById(`stage-${dealId}`).value;
-    const side = document.getElementById(`side-${dealId}`).value;
-    const price = parseFloat(document.getElementById(`price-${dealId}`).value) || 0;
-    const comm = parseFloat(document.getElementById(`comm-${dealId}`).value) || 0;
-    const agent = document.getElementById(`agent-${dealId}`).value;
-    const isRisk = document.getElementById(`risk-${dealId}`).checked;
-    const explanation = document.getElementById(`explain-${dealId}`).value;
+  // State-driven change logging engine for row inputs
+  const handleRowInputChange = (dealId, fieldName, value) => {
+    setEditingDeals(prev => ({
+      ...prev,
+      [dealId]: {
+        ...prev[dealId],
+        [fieldName]: value
+      }
+    }));
+  };
+
+  // EXPLICIT ROW SAVE FUNCTION UTILIZING COMPONENT STATE BUFFER
+  const handleSaveRowData = async (dealId) => {
+    const dealState = editingDeals[dealId];
+    if (!dealState) return;
 
     const res = await fetch('/api/leads', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: dealId,
-        current_stage: stage,
-        deal_side: side,
-        price_parameter: price,
-        commission_rate: comm,
-        assigned_agent: agent,
-        is_at_risk: isRisk,
-        risk_explanation: explanation
+        current_stage: dealState.current_stage,
+        deal_side: dealState.deal_side,
+        price_parameter: parseFloat(dealState.price_parameter) || 0,
+        commission_rate: parseFloat(dealState.commission_rate) || 0,
+        assigned_agent: dealState.assigned_agent,
+        is_at_risk: dealState.is_at_risk,
+        risk_explanation: dealState.risk_explanation
       })
     });
 
@@ -184,7 +230,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // CE Course Adding Utilities
+  // CE Course Adding Utilities with LocalStorage Tracking
   const handleAddCeCourse = (e) => {
     e.preventDefault();
     const newCourse = {
@@ -195,12 +241,14 @@ export default function AdminDashboard() {
     };
     const updatedCourses = [newCourse, ...ceCourses];
     setCeCourses(updatedCourses);
+    localStorage.setItem('crm_ce_courses', JSON.stringify(updatedCourses));
+    
     const completedHours = updatedCourses.reduce((sum, c) => sum + c.hours, 0);
     setCeHours({ ...ceHours, completed: completedHours });
     e.target.reset();
   };
 
-  // Expense Appending Utilities
+  // Expense Appending Utilities with LocalStorage Tracking
   const handleAddExpense = (e) => {
     e.preventDefault();
     const newExp = {
@@ -210,39 +258,32 @@ export default function AdminDashboard() {
       category: e.target.e_cat.value,
       date: e.target.e_date.value
     };
-    setExpenses([newExp, ...expenses]);
+    const updatedExpenses = [newExp, ...expenses];
+    setExpenses(updatedExpenses);
+    localStorage.setItem('crm_expenses', JSON.stringify(updatedExpenses));
     e.target.reset();
   };
 
-  if (checkingAuth) return <div className="bg-slate-950 min-h-screen flex items-center justify-center text-xs text-slate-500 font-bold uppercase animate-pulse">Running Secure Environment Check...</div>;
-
-  if (!isAuthenticated) {
-    return (
-      <div className="bg-slate-950 min-h-screen flex items-center justify-center font-sans px-4">
-        <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-6 shadow-2xl text-center relative">
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 to-indigo-600" />
-          <div className="flex justify-center text-blue-500"><Lock size={40} /></div>
-          <h2 className="text-lg font-black uppercase text-white tracking-tight">Security Gateway Challenge</h2>
-          <form onSubmit={handleLoginSubmit} className="space-y-4">
-            <input type="password" required placeholder="Enter Agent Passkey" value={passInput} onChange={(e) => setPassInput(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-center tracking-widest text-white outline-none focus:border-blue-600" />
-            {authError && <p className="text-[11px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 py-2 rounded-xl">Access Denied.</p>}
-            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-wider py-3.5 rounded-xl transition shadow-lg">Validate Credentials</button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  // FIXED COMPARISON CHECK: Sanitize strings cleanly before sorting to tabs
-  const parsedUserMatch = currentUser.trim().toLowerCase();
-  const personalDeals = data.deals.filter(d => (d.assigned_agent || '').trim().toLowerCase() === parsedUserMatch);
-  const teamDeals = data.deals.filter(d => (d.assigned_agent || '').trim().toLowerCase() !== parsedUserMatch);
+  // Unified Workspace String Normalization Filtering Matchers
+  const normalizedUser = (currentUser || 'Jeremy Thieroff').trim().toLowerCase();
+  
+  const personalDeals = data.deals.filter(d => 
+    (d.assigned_agent || 'Jeremy Thieroff').trim().toLowerCase() === normalizedUser
+  );
+  
+  const teamDeals = data.deals.filter(d => 
+    (d.assigned_agent || 'Jeremy Thieroff').trim().toLowerCase() !== normalizedUser
+  );
+  
   const activeDealsDisplay = viewTab === 'mine' ? personalDeals : teamDeals;
+
+  const listingDeals = activeDealsDisplay.filter(d => (d?.deal_side || 'Seller') === 'Seller');
+  const escrowDeals = activeDealsDisplay.filter(d => (d?.deal_side || 'Seller') === 'Buyer');
 
   return (
     <div className="bg-slate-950 min-h-screen text-slate-100 font-sans flex flex-col lg:flex-row">
       
-      {/* 🧭 NAVIGATION SIDEBAR (Tailored Workspace Hub) */}
+      {/* 🧭 NAVIGATION SIDEBAR CONTAINER */}
       <div className="w-full lg:w-64 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800/80 p-6 space-y-8 shrink-0">
         <div className="space-y-1">
           <div className="text-sm font-black tracking-tight flex items-center gap-2 uppercase"><Database className="text-blue-500" /> Elite CRM Desk</div>
@@ -259,13 +300,12 @@ export default function AdminDashboard() {
         <button onClick={handleLogout} className="w-full mt-12 bg-slate-950 border border-slate-800/80 p-2.5 rounded-xl text-[10px] font-black uppercase text-red-400 hover:bg-red-500/10 transition flex items-center justify-center gap-1.5"><LogOut size={12}/> Lock Session</button>
       </div>
 
-      {/* MAIN VIEWPORT MATRIX */}
+      {/* MAIN DATA MODULE HUB DISPLAY GRID */}
       <div className="flex-1 p-8 space-y-8 overflow-x-hidden">
         
-        {/* MODULE 1: CORE TRANSACTION PIPELINE */}
+        {/* MODULE 1: TRANSACTIONS & ESCROW TABLES */}
         {activeModule === 'pipeline' && (
           <div className="space-y-8">
-            {/* Create block */}
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
               <h2 className="text-xs font-black uppercase text-blue-400 flex items-center gap-2"><Sparkles size={14}/> Provision Active Client Escrow File</h2>
               <form onSubmit={handleCreateDeal} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-xs">
@@ -290,85 +330,24 @@ export default function AdminDashboard() {
               </form>
             </div>
 
-            {/* Selection tab filters */}
             <div className="flex border-b border-slate-900 gap-2">
               <button onClick={() => setViewTab('mine')} className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${viewTab === 'mine' ? 'border-blue-500 text-blue-400 bg-blue-500/5' : 'border-transparent text-slate-500'}`}>My Desk Operations ({personalDeals.length})</button>
               <button onClick={() => setViewTab('team')} className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${viewTab === 'team' ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' : 'border-transparent text-slate-500'}`}>Team Operational Pipeline ({teamDeals.length})</button>
             </div>
 
-            {/* Master Data Grid Table */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 overflow-x-auto shadow-2xl">
-              {loading ? (
-                <div className="text-center py-6 text-slate-500 font-bold uppercase animate-pulse text-xs">Querying Postgres Cloud Modules...</div>
-              ) : activeDealsDisplay.length === 0 ? (
-                <div className="text-center py-10 text-slate-600 font-bold uppercase text-[11px] tracking-wider">No transactional portfolios assigned here.</div>
-              ) : (
-                <table className="w-full text-left text-xs border-collapse min-w-[900px]">
-                  <thead>
-                    <tr className="bg-slate-950 text-slate-400 uppercase font-black text-[10px] tracking-widest border-b border-slate-800">
-                      <th className="p-3">Client / Listing Context</th>
-                      <th className="p-3">Parameters</th>
-                      <th className="p-3">Milestone Escrow Phase</th>
-                      <th className="p-3">Risk Configuration</th>
-                      <th className="p-3">Representative Owner</th>
-                      <th className="p-3 text-center">Save / Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/40">
-                    {activeDealsDisplay.map((deal) => (
-                      <tr key={deal.id} className="hover:bg-slate-950/20 transition">
-                        <td className="p-3">
-                          <div className="font-black text-white text-sm">{deal.client_name}</div>
-                          <div className="text-slate-400 font-medium mt-0.5">{deal.property_address}</div>
-                        </td>
-                        <td className="p-3 space-y-1">
-                          <select id={`side-${deal.id}`} defaultValue={deal.deal_side || 'Seller'} className="bg-slate-950 border border-slate-800 text-slate-300 rounded p-1 font-bold font-mono">
-                            <option value="Seller">Seller</option>
-                            <option value="Buyer">Buyer</option>
-                          </select>
-                          <div className="flex gap-1 items-center mt-1">
-                            <input id={`price-${deal.id}`} type="number" defaultValue={deal.price_parameter || 0} className="w-16 bg-slate-950 border border-slate-800 rounded p-1 font-bold text-white text-[11px]" />
-                            <input id={`comm-${deal.id}`} type="number" step="0.1" defaultValue={deal.commission_rate || 2.5} className="w-10 bg-slate-950 border border-slate-800 rounded p-1 font-bold text-amber-400 text-[11px]" />
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <select id={`stage-${deal.id}`} defaultValue={deal.current_stage} className="bg-slate-950 border border-slate-800 rounded-lg p-2 font-bold text-blue-400 outline-none">
-                            <option>Mutual Acceptance</option>
-                            <option>Home Inspection Period</option>
-                            <option>Bank Appraisal Flight</option>
-                            <option>Title Clear Search</option>
-                            <option>Clear to Close 🎉</option>
-                          </select>
-                        </td>
-                        <td className="p-3 space-y-1">
-                          <label className="flex items-center gap-1.5 cursor-pointer text-[10px] uppercase font-black text-slate-400">
-                            <input id={`risk-${deal.id}`} type="checkbox" defaultChecked={deal.is_at_risk} className="accent-red-500 h-3.5 w-3.5 rounded border-slate-800" /> At Risk
-                          </label>
-                          <input id={`explain-${deal.id}`} placeholder="Friction summary notes..." defaultValue={deal.risk_explanation || ''} className="bg-slate-950 border border-slate-800 rounded p-1 text-[11px] text-slate-300 w-full max-w-[140px]" />
-                        </td>
-                        <td className="p-3">
-                          <select id={`agent-${deal.id}`} defaultValue={deal.assigned_agent || 'Jeremy Thieroff'} className="bg-slate-950 border border-slate-800 text-indigo-300 font-bold p-1.5 rounded-lg text-xs outline-none">
-                            {agentsList.map((a, idx) => (
-                              <option key={idx} value={a}>{a}</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center justify-center gap-2">
-                            {/* Explicit Master Row Sync Actions */}
-                            <button onClick={() => handleSaveRowData(deal.id)} className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-lg transition" title="Save Ledger Record Updates"><Save size={14}/></button>
-                            <a href={`/tracker/${deal.id}`} target="_blank" rel="noreferrer" className="bg-slate-950 border border-slate-800 p-2 rounded-lg text-blue-400 font-bold uppercase text-[10px] transition">Portal</a>
-                            <Link href={`/tracker/${deal.id}/edit`} className="bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/20 p-2 rounded-lg text-amber-500 font-bold uppercase text-[10px] transition">Edit</Link>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+            <div className="space-y-8">
+              <div className="space-y-3">
+                <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5"><Building2 size={14} className="text-blue-500"/> Listing Portfolio (Sellers)</h3>
+                <DealPipelineTable dealsArray={listingDeals} editingDeals={editingDeals} agentsList={agentsList} loading={loading} onInputChange={handleRowInputChange} onSave={handleSaveRowData} />
+              </div>
+              
+              <div className="space-y-3">
+                <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5"><Briefcase size={14} className="text-indigo-400"/> Escrow Pipeline (Buyers)</h3>
+                <DealPipelineTable dealsArray={escrowDeals} editingDeals={editingDeals} agentsList={agentsList} loading={loading} onInputChange={handleRowInputChange} onSave={handleSaveRowData} />
+              </div>
             </div>
 
-            {/* Inbound Intake Streams */}
+            {/* Inbound Lead Inbox Streams */}
             <div className="space-y-3">
               <h3 className="text-xs font-black uppercase text-slate-400 flex items-center gap-1.5"><MessageSquare size={14} className="text-emerald-500" /> Universal Central Incoming Leads</h3>
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 divide-y divide-slate-800/40 shadow-xl">
@@ -376,13 +355,31 @@ export default function AdminDashboard() {
                   <div className="text-center py-6 text-slate-600 font-bold uppercase text-[10px]">Lead buffer storage queue clear.</div>
                 ) : (
                   data.leads.map((l) => (
-                    <div key={l.id} className="p-4 hover:bg-slate-950/20 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition">
-                      <div className="space-y-1 max-w-3xl">
-                        <span className="text-[9px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded font-black tracking-wider uppercase">{l.category}</span>
-                        <div className="font-bold text-white text-sm">{l.name} · <span className="text-slate-400 text-xs font-medium">{l.email} | {l.phone}</span></div>
-                        <p className="text-slate-400 bg-slate-950/40 border border-slate-800/40 p-2.5 rounded-lg text-xs leading-relaxed font-medium mt-1">{l.message}</p>
+                    <div key={l.id} className="p-4 hover:bg-slate-950/20 rounded-xl flex flex-col justify-between gap-4 transition">
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div className="space-y-1 max-w-3xl">
+                          <span className="text-[9px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded font-black tracking-wider uppercase">{l.category}</span>
+                          <div className="font-bold text-white text-sm">{l.name} · <span className="text-slate-400 text-xs font-medium">{l.email} | {l.phone}</span></div>
+                          <p className="text-slate-400 bg-slate-950/40 border border-slate-800/40 p-2.5 rounded-lg text-xs leading-relaxed font-medium mt-1">{l.message}</p>
+                        </div>
+                        {convertingLeadId !== l.id && (
+                          <button onClick={() => setConvertingLeadId(l.id)} className="bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 px-3 py-2 rounded-xl text-emerald-400 font-black uppercase text-[10px] tracking-wider transition shrink-0">Claim & Convert Client →</button>
+                        )}
                       </div>
-                      <button onClick={() => handleConvertLead(l.id)} className="bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 px-3 py-2 rounded-xl text-emerald-400 font-black uppercase text-[10px] tracking-wider transition shrink-0">Claim & Convert Client →</button>
+
+                      {/* Clean Native Inline Conversion Card instead of alert prompts */}
+                      {convertingLeadId === l.id && (
+                        <div className="bg-slate-950 p-4 border border-slate-800 rounded-xl flex flex-col sm:flex-row gap-3 items-end animate-fade-in">
+                          <div className="space-y-1 flex-1 w-full">
+                            <label className="text-[9px] uppercase font-black tracking-wider text-slate-500 flex items-center gap-1"><AlertCircle size={10}/> Establish Conversion Target Address</label>
+                            <input type="text" value={conversionAddress} onChange={(e) => setConversionAddress(e.target.value)} placeholder="Enter Property escrow target string parameters..." className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-xs text-white outline-none focus:border-emerald-500" />
+                          </div>
+                          <div className="flex gap-2 w-full sm:w-auto">
+                            <button onClick={() => handleConvertLeadSubmit(l.id)} className="bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] px-4 py-2.5 rounded-lg tracking-wider transition w-full sm:w-auto">Finalize Representation Contract</button>
+                            <button onClick={() => { setConvertingLeadId(null); setConversionAddress(''); }} className="bg-slate-900 border border-slate-800 text-slate-400 font-bold uppercase text-[10px] px-3 py-2.5 rounded-lg transition">Cancel</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
@@ -391,7 +388,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* MODULE 2: PERSONAL CONTINUING EDUCATION (CE) TRACKER */}
+        {/* MODULE 2: PERSISTENT CONTINUING EDUCATION MODULE */}
         {activeModule === 'ce_tracker' && (
           <div className="space-y-6 max-w-4xl">
             <div className="border-b border-slate-900 pb-3">
@@ -399,7 +396,6 @@ export default function AdminDashboard() {
               <p className="text-xs text-slate-400">Monitor Pennsylvania State Real Estate Commission biennial compliance benchmarks dynamically.</p>
             </div>
 
-            {/* Metric Displays */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center space-y-1 shadow-md">
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Hours Documented</span>
@@ -415,7 +411,6 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Add course logic */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-300">Log State-Approved Completed Course Credit</h3>
               <form onSubmit={handleAddCeCourse} className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
@@ -428,7 +423,6 @@ export default function AdminDashboard() {
               </form>
             </div>
 
-            {/* Course Table Registry */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl">
               <table className="w-full text-left text-xs">
                 <thead>
@@ -452,7 +446,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* MODULE 3: INDIVIDUAL EXPENSE LEDGER TRACKER */}
+        {/* MODULE 3: PERSISTENT BUSINESS EXPENSES LEDGER */}
         {activeModule === 'expenses' && (
           <div className="space-y-6 max-w-4xl">
             <div className="border-b border-slate-900 pb-3">
@@ -460,11 +454,10 @@ export default function AdminDashboard() {
               <p className="text-xs text-slate-400">Track structural operational expenses, marketing capital outlays, and vehicle tracking metrics for Schedule-C writeoffs.</p>
             </div>
 
-            {/* Form Input */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
               <h3 className="text-xs font-black uppercase text-slate-300">Log New Outbound Business Capital Entry</h3>
               <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
-                <input name="e_desc" required placeholder="Item Outlay Description (e.g., Supremium Keybox Dues)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                <input name="e_desc" required placeholder="Item Outlay Description" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
                 <input name="e_amt" type="number" step="0.01" required placeholder="Amount Spend ($)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
                 <select name="e_cat" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-300 outline-none">
                   <option>MLS & Association Assessment Dues</option>
@@ -479,7 +472,6 @@ export default function AdminDashboard() {
               </form>
             </div>
 
-            {/* List block */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl">
               <table className="w-full text-left text-xs">
                 <thead>
@@ -501,7 +493,7 @@ export default function AdminDashboard() {
                   ))}
                 </tbody>
               </table>
-              <div className="mt-4 bg-slate-950 p-3 rounded-xl border border-slate-800/60 flex justify-between items-center font-bold text-xs text-slate-400">
+              <div className="mt-4 bg-slate-950 p-4 rounded-xl border border-slate-800/60 flex justify-between items-center font-bold text-xs text-slate-400">
                 <span>Total Accumulated Operational Deductions (Current Tax Year):</span>
                 <span className="text-red-400 font-black text-sm">-${expenses.reduce((sum, e) => sum + e.amount, 0).toFixed(2)}</span>
               </div>
@@ -509,7 +501,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* MODULE 4: OFFICE AGENT REGISTRY MANAGEMENTS */}
+        {/* MODULE 4: OFFICE TEAM REGISTRY SECTION */}
         {activeModule === 'agent_mgmt' && (
           <div className="space-y-6 max-w-xl">
             <div className="border-b border-slate-900 pb-3">
@@ -543,6 +535,145 @@ export default function AdminDashboard() {
         )}
 
       </div>
+    </div>
+  );
+}
+
+// ==========================================
+// 🛡️ EXTRACTED STANDALONE PIPELINE COMPONENT
+// ==========================================
+function DealPipelineTable({ dealsArray, editingDeals, agentsList, loading, onInputChange, onSave }) {
+  if (loading) {
+    return <div className="text-center py-6 text-slate-500 font-bold uppercase animate-pulse text-xs">Querying Postgres Cloud Modules...</div>;
+  }
+  
+  if (dealsArray.length === 0) {
+    return <div className="text-center py-6 text-slate-600 font-bold uppercase text-[10px] bg-slate-900/40 border border-slate-800/60 rounded-xl">No active properties inside this funnel mapping segment.</div>;
+  }
+
+  return (
+    /* 📱 Outer Scroll Wrapper for Mobile Responsiveness */
+    <div className="w-full overflow-x-auto rounded-2xl border border-slate-800 shadow-2xl bg-slate-900">
+      <table className="w-full text-left text-xs border-collapse min-w-[950px]">
+        <thead>
+          <tr className="bg-slate-950 text-slate-400 uppercase font-black text-[10px] tracking-widest border-b border-slate-800">
+            <th className="p-3">Client / Listing Context</th>
+            <th className="p-3">Parameters</th>
+            <th className="p-3">Milestone Escrow Phase</th>
+            <th className="p-3">Risk Configuration</th>
+            <th className="p-3">Representative Owner</th>
+            <th className="p-3 text-center">Save / Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-800/40">
+          {dealsArray.map((deal) => {
+            const currentEditState = editingDeals[deal.id] || {
+              deal_side: deal.deal_side || 'Seller',
+              price_parameter: deal.price_parameter || 0,
+              commission_rate: deal.commission_rate || 2.5,
+              current_stage: deal.current_stage || 'Mutual Acceptance',
+              is_at_risk: deal.is_at_risk || false,
+              risk_explanation: deal.risk_explanation || '',
+              assigned_agent: deal.assigned_agent || 'Jeremy Thieroff'
+            };
+
+            return (
+              <tr key={deal.id} className="hover:bg-slate-950/20 transition">
+                <td className="p-3">
+                  <div className="font-black text-white text-sm">{deal.client_name}</div>
+                  <div className="text-slate-400 font-medium mt-0.5 flex items-center gap-1"><MapPin size={12} className="text-slate-600"/>{deal.property_address}</div>
+                </td>
+                
+                {/* ⚡ Controlled Inputs Tied Strictly to Component Edit State Buffer */}
+                <td className="p-3 space-y-1">
+                  <select 
+                    value={currentEditState.deal_side} 
+                    onChange={(e) => onInputChange(deal.id, 'deal_side', e.target.value)}
+                    className="bg-slate-950 border border-slate-800 text-slate-300 rounded p-1 font-bold font-mono text-[11px]"
+                  >
+                    <option value="Seller">Seller</option>
+                    <option value="Buyer">Buyer</option>
+                  </select>
+                  <div className="flex gap-1 items-center mt-1">
+                    <div className="relative">
+                      <span className="absolute left-1 top-1.5 text-slate-600 text-[9px] font-bold">$</span>
+                      <input 
+                        type="number" 
+                        value={currentEditState.price_parameter} 
+                        onChange={(e) => onInputChange(deal.id, 'price_parameter', e.target.value)}
+                        className="w-16 bg-slate-950 border border-slate-800 rounded p-1 pl-3 font-bold text-white text-[11px] outline-none" 
+                      />
+                    </div>
+                    <div className="relative">
+                      <span className="absolute right-1 top-1.5 text-slate-600 text-[9px] font-bold">%</span>
+                      <input 
+                        type="number" 
+                        step="0.1" 
+                        value={currentEditState.commission_rate} 
+                        onChange={(e) => onInputChange(deal.id, 'commission_rate', e.target.value)}
+                        className="w-12 bg-slate-950 border border-slate-800 rounded p-1 pr-3 font-bold text-amber-400 text-[11px] outline-none" 
+                      />
+                    </div>
+                  </div>
+                </td>
+                
+                <td className="p-3">
+                  <select 
+                    value={currentEditState.current_stage} 
+                    onChange={(e) => onInputChange(deal.id, 'current_stage', e.target.value)}
+                    className="bg-slate-950 border border-slate-800 rounded-lg p-2 font-bold text-blue-400 outline-none cursor-pointer"
+                  >
+                    <option>Mutual Acceptance</option>
+                    <option>Home Inspection Period</option>
+                    <option>Bank Appraisal Flight</option>
+                    <option>Title Clear Search</option>
+                    <option>Clear to Close 🎉</option>
+                  </select>
+                </td>
+                
+                <td className="p-3 space-y-1">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-[10px] uppercase font-black text-slate-400 select-none">
+                    <input 
+                      type="checkbox" 
+                      checked={currentEditState.is_at_risk} 
+                      onChange={(e) => onInputChange(deal.id, 'is_at_risk', e.target.checked)}
+                      className="accent-red-500 h-3.5 w-3.5 rounded border-slate-800" 
+                    /> At Risk
+                  </label>
+                  <input 
+                    type="text"
+                    placeholder="Friction notes..." 
+                    value={currentEditState.risk_explanation} 
+                    onChange={(e) => onInputChange(deal.id, 'risk_explanation', e.target.value)}
+                    disabled={!currentEditState.is_at_risk}
+                    className="bg-slate-950 border border-slate-800 rounded p-1 text-[11px] text-slate-300 w-full max-w-[140px] outline-none disabled:opacity-40" 
+                  />
+                </td>
+                
+                <td className="p-3">
+                  <select 
+                    value={currentEditState.assigned_agent} 
+                    onChange={(e) => onInputChange(deal.id, 'assigned_agent', e.target.value)}
+                    className="bg-slate-950 border border-slate-800 text-indigo-300 font-bold p-1.5 rounded-lg text-xs outline-none cursor-pointer"
+                  >
+                    {agentsList.map((a, idx) => (
+                      <option key={idx} value={a}>{a}</option>
+                    ))}
+                  </select>
+                </td>
+                
+                <td className="p-3">
+                  <div className="flex items-center justify-center gap-2">
+                    <button onClick={() => onSave(deal.id)} className="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white p-2 rounded-lg border border-emerald-500/20 transition" title="Save Dynamic Local Buffer Changes"><Save size={14}/></button>
+                    <a href={`/tracker/${deal.id}`} target="_blank" rel="noreferrer" className="bg-slate-950 border border-slate-800 p-2 rounded-lg text-blue-400 font-bold uppercase text-[10px] transition hover:border-slate-700">Portal</a>
+                    <Link href={`/tracker/${deal.id}/edit`} className="bg-slate-950 border border-slate-800 p-2 rounded-lg text-amber-500 font-bold uppercase text-[10px] transition hover:border-slate-700">Open</Link>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

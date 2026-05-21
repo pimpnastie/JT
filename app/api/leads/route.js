@@ -160,16 +160,50 @@ export async function GET() {
     const sql = neon(process.env.DATABASE_URL);
     await initializeTables(sql);
     
-    const leads = await sql("SELECT id, name, email, phone, message, status, category, assigned_agent FROM leads WHERE status != 'Converted' ORDER BY id DESC;");
-    const deals = await sql('SELECT id, lead_id, client_name, property_address, current_stage, is_at_risk, risk_explanation, deal_side, price_parameter, commission_rate, assigned_agent FROM deal_trackers ORDER BY last_updated DESC;');
+    // FUTURE-PROOF SHIELD: COALESCE forces safe defaults if a column is ever null
+    const leads = await sql(`
+      SELECT 
+        id, 
+        name, 
+        email, 
+        phone, 
+        message, 
+        COALESCE(status, 'New') AS status, 
+        COALESCE(category, 'General Intake') AS category, 
+        COALESCE(assigned_agent, 'Unassigned') AS assigned_agent 
+      FROM leads 
+      WHERE status != 'Converted' 
+      ORDER BY id DESC;
+    `);
     
+    const deals = await sql(`
+      SELECT 
+        id, 
+        lead_id, 
+        client_name, 
+        property_address, 
+        COALESCE(current_stage, 'Mutual Acceptance') AS current_stage, 
+        COALESCE(is_at_risk, FALSE) AS is_at_risk, 
+        COALESCE(risk_explanation, '') AS risk_explanation, 
+        COALESCE(deal_side, 'Seller') AS deal_side, 
+        COALESCE(price_parameter, 0) AS price_parameter, 
+        COALESCE(commission_rate, 2.5) AS commission_rate, 
+        COALESCE(assigned_agent, 'Jeremy Thieroff') AS assigned_agent 
+      FROM deal_trackers 
+      ORDER BY last_updated DESC;
+    `);
+    
+    // Strict JSON Response Header compliance with Cache-Busting headers
     return new Response(JSON.stringify({ leads, deals }), { 
       status: 200, 
-      headers: { 'Content-Type': 'application/json' } 
+      headers: { 
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, max-age=0, must-revalidate' 
+      } 
     });
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), { 
-      status: 500,
+      status: 500, 
       headers: { 'Content-Type': 'application/json' }
     });
   }
