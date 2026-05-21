@@ -1,12 +1,29 @@
 "use client";
 import { agentData } from './data/agentContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ShieldCheck, Target, Home, MapPin, Phone, Mail, Award, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Target, MapPin, Phone, Mail, Award, CheckCircle2, Activity, AlertCircle } from 'lucide-react';
 
 export default function HomePage() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [activeDeals, setActiveDeals] = useState([]);
+  
+  // Streams real-time database tracking metrics straight out of Neon Postgres
+  useEffect(() => {
+    async function streamDeals() {
+      try {
+        const res = await fetch('/api/leads');
+        if (res.ok) {
+          const payload = await res.json();
+          setActiveDeals(payload.deals || []);
+        }
+      } catch (err) {
+        console.error("Database streaming failure:", err);
+      }
+    }
+    streamDeals();
+  }, []);
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
@@ -52,12 +69,11 @@ export default function HomePage() {
         </div>
       </nav>
 
-      {/* Hero AIDA Strategy Hook Container */}
+      {/* Hero Section */}
       <header className="bg-gradient-to-b from-slate-900 via-[#0a192f] to-slate-950 text-white py-20 px-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-900/20 via-transparent to-transparent pointer-events-none" />
         
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-12 items-center">
-          {/* Headline Copy Matrix */}
           <div className="md:col-span-7 space-y-6 text-left">
             <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-400/20 px-3 py-1 rounded-full text-blue-400 text-xs font-bold uppercase tracking-wider">
               <Award size={14} /> Top-Tier Pittsburgh Portfolio Strategy
@@ -68,7 +84,6 @@ export default function HomePage() {
             <p className="text-base text-slate-300 font-normal leading-relaxed max-w-xl">
               Real estate transactions require precise local tracking. {agentData.profile.name} combines deep market intelligence with data-driven evaluation tools to maximize equity velocity for local home sellers and buyers.
             </p>
-            {/* Visual Trust Indicators */}
             <div className="grid grid-cols-3 gap-4 border-t border-white/10 pt-6 max-w-md">
               <div className="flex flex-col"><span className="text-xl font-bold text-white">100%</span><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Local Target</span></div>
               <div className="flex flex-col"><span className="text-xl font-bold text-white">Verified</span><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">MLS Data Link</span></div>
@@ -76,11 +91,9 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Jeremy's Live Scraped Profile Headshot Card */}
           <div className="md:col-span-5 flex justify-center">
             <div className="bg-white/5 border border-white/10 p-4 rounded-3xl backdrop-blur-sm shadow-2xl w-full max-w-[340px] group transition-all duration-300 hover:border-white/20">
               <div className="relative rounded-2xl overflow-hidden bg-slate-800 aspect-square border border-white/5 shadow-inner">
-                {/* Fallback pattern layered under his live profile image stream */}
                 <img 
                   src={agentData.profile.avatarUrl} 
                   alt={agentData.profile.name}
@@ -104,6 +117,46 @@ export default function HomePage() {
 
       {/* Main Framework Grid */}
       <main className="max-w-6xl mx-auto px-4 py-16 grid grid-cols-1 lg:grid-cols-12 gap-12">
+        
+        {/* LIVE TRANSACTION PERFORMANCE CENTER CONTAINER (Added from last step) */}
+        {activeDeals.length > 0 && (
+          <div className="col-span-1 lg:col-span-12 bg-white rounded-2xl border border-slate-200/80 p-6 space-y-6 shadow-sm">
+            <div className="border-b border-slate-100 pb-4">
+              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                <Activity className="text-blue-600 animate-pulse" size={18} /> Real-Time Transaction Performance Center
+              </h3>
+              <p className="text-xs text-slate-400 font-medium">Verify your exact file phase parameters streaming directly from our active regional board link</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {activeDeals.map((deal) => (
+                <div key={deal.id} className={`p-5 rounded-2xl border relative overflow-hidden transition-all duration-300 ${deal.is_at_risk ? 'bg-amber-50/40 border-amber-200 shadow-amber-100/40' : 'bg-slate-50/50 border-slate-200/80'}`}>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Active File Portfolio</span>
+                      <h4 className="text-base font-black text-slate-900 mt-1">{deal.property_address}</h4>
+                      <p className="text-xs text-slate-500 font-semibold mt-0.5">Account Client ID: {deal.client_name.charAt(0)}*** {deal.client_name.split(' ').pop()}</p>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${deal.is_at_risk ? 'bg-amber-500 text-slate-950' : 'bg-cbnavy text-white'}`}>
+                      {deal.current_stage}
+                    </span>
+                  </div>
+
+                  {deal.is_at_risk && (
+                    <div className="mt-4 bg-white border border-amber-200 rounded-xl p-3 flex gap-2.5 items-start text-xs">
+                      <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={16} />
+                      <div className="space-y-1">
+                        <span className="font-bold text-amber-950 uppercase text-[9px] tracking-wider block">Operational Action Parameter Flagged</span>
+                        <p className="text-slate-600 leading-relaxed font-medium">{deal.risk_explanation || "External structural factors are varying parameter tolerances. Contact direct desk line for mitigation strategy."}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Active Strategic Listings Section */}
         <div className="lg:col-span-7 space-y-8">
           <div className="space-y-1">
