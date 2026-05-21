@@ -1,38 +1,42 @@
 "use client";
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Database, User, Activity, Sparkles, MessageSquare, Briefcase, ExternalLink, Settings2, Lock, Users, UserPlus, CheckCircle, Save, DollarSign, Percent, BookOpen, Receipt, ClipboardList, LogOut } from 'lucide-react';
+import { 
+  Database, User, Activity, Sparkles, MessageSquare, Briefcase, ExternalLink, 
+  Settings2, Lock, Users, UserPlus, Save, DollarSign, Percent, BookOpen, 
+  Receipt, ClipboardList, LogOut, CheckCircle2, ShieldAlert, FileSignature, 
+  MapPin, Landmark, FileText, UserCheck, Eye
+} from 'lucide-react';
 
 export default function AdminDashboard() {
-  // Authentication & Identity States
+  // Authentication & Session Workspace Identity Keys
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState('Jeremy Thieroff');
   const [passInput, setPassInput] = useState('');
   const [authError, setAuthError] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  // Dynamic Layout Navigation
-  const [activeModule, setActiveModule] = useState('pipeline'); // 'pipeline', 'agent_mgmt', 'ce_tracker', 'expenses'
+  // Deep Real Estate Domain Navigation Cogs
+  const [activeModule, setActiveModule] = useState('listings'); // 'listings', 'escrows', 'regulatory', 'ce_tracker', 'expenses', 'team'
   const [viewTab, setViewTab] = useState('mine'); // 'mine' vs 'team'
 
-  // Master Core Data Storage
+  // Central Database Pipeline Storage state
   const [data, setData] = useState({ leads: [], deals: [] });
   const [loading, setLoading] = useState(true);
-  
-  // Custom Dynamic Agent Registry (Stored locally or queried)
   const [agentsList, setAgentsList] = useState(['Jeremy Thieroff', 'Team Partner']);
 
-  // PA CE Tracker Mock Data States (Per Agent Personalization)
+  // PA CE Tracker Performance Metrics (Biennial State Requirements Monitor)
   const [ceHours, setCeHours] = useState({ completed: 6, required: 14, deadLine: 'May 31, 2026' });
   const [ceCourses, setCeCourses] = useState([
-    { id: 1, name: 'PA Real Estate Core Law & Rules', hours: 3.5, date: '2025-11-12' },
-    { id: 2, name: 'Fair Housing Mandate Course', hours: 2.5, date: '2026-02-18' }
+    { id: 1, name: 'PA Real Estate Core Agency Law & Fiduciary Duty', hours: 3.5, date: '2025-11-12', category: 'Mandatory Core' },
+    { id: 2, name: 'Implicit Bias & PA Fair Housing Mandate', hours: 2.5, date: '2026-02-18', category: 'Fair Housing' }
   ]);
 
-  // Personal Business Expense Tracking States
+  // Schedule-C Independent Contractor Expense Ledger
   const [expenses, setExpenses] = useState([
-    { id: 1, description: 'West Penn MLS Quarterly Assessment Fees', amount: 145.00, category: 'MLS Dues', date: '2026-04-01' },
-    { id: 2, description: 'Facebook Targeted Geofence Ad Runs - Open House', amount: 75.00, category: 'Marketing', date: '2026-05-10' }
+    { id: 1, description: 'West Penn MLS Quarterly Access Dues', amount: 145.00, category: 'MLS & Association Fees', date: '2026-04-01' },
+    { id: 2, description: 'ShowingTime Software Platform Subscription', amount: 45.00, category: 'Software & Technology', date: '2026-04-15' },
+    { id: 3, description: 'Facebook Target Geofenced Ad Run - 3411 Mt Troy Open House', amount: 75.00, category: 'Marketing & Advertising', date: '2026-05-10' }
   ]);
 
   useEffect(() => {
@@ -74,14 +78,10 @@ export default function AdminDashboard() {
     } else if (token === "partneradmin2026") {
       logUserIn('Team Partner');
     } else if (token.endsWith('admin2026')) {
-      // Dynamic fallback processing for custom onboarded agent string passkeys
       const parsedAgentName = token.replace('admin2026', '').replace('_', ' ');
       const matched = agentsList.find(a => a.toLowerCase().replace(/\s+/g, '') === parsedAgentName);
-      if (matched) {
-        logUserIn(matched);
-      } else {
-        setAuthError(true);
-      }
+      if (matched) logUserIn(matched);
+      else setAuthError(true);
     } else {
       setAuthError(true);
     }
@@ -101,7 +101,6 @@ export default function AdminDashboard() {
     setIsAuthenticated(false);
   };
 
-  // Onboard new realtors to the operational environment dynamically from the WebUI
   const handleAddAgentToRegistry = (e) => {
     e.preventDefault();
     const newName = e.target.agent_name.value.trim();
@@ -136,7 +135,7 @@ export default function AdminDashboard() {
   };
 
   const handleConvertLead = async (leadId) => {
-    const propertyTarget = prompt("Enter Target Property Escrow Location or Search Parameter Criteria:");
+    const propertyTarget = prompt("Enter Target Property Escrow Location / CMA Criteria Notes:");
     if (!propertyTarget) return;
 
     const res = await fetch('/api/leads', {
@@ -153,8 +152,7 @@ export default function AdminDashboard() {
     if (res.ok) fetchClusterData();
   };
 
-  // EXPLICIT ROW SAVE FUNCTION FOR MASTER TRANSACTION ROWS
-  const handleSaveRowData = async (dealId, rowRef) => {
+  const handleSaveRowData = async (dealId) => {
     const stage = document.getElementById(`stage-${dealId}`).value;
     const side = document.getElementById(`side-${dealId}`).value;
     const price = parseFloat(document.getElementById(`price-${dealId}`).value) || 0;
@@ -167,54 +165,39 @@ export default function AdminDashboard() {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        id: dealId,
-        current_stage: stage,
-        deal_side: side,
-        price_parameter: price,
-        commission_rate: comm,
-        assigned_agent: agent,
-        is_at_risk: isRisk,
-        risk_explanation: explanation
+        id: dealId, current_stage: stage, deal_side: side, price_parameter: price,
+        commission_rate: comm, assigned_agent: agent, is_at_risk: isRisk, risk_explanation: explanation
       })
     });
 
     if (res.ok) {
-      alert(`✓ Database Synchronized for ID row XA-${dealId}`);
+      alert(`✓ PAR Escrow Ledger Synchronized for ID file: XA-${dealId}`);
       fetchClusterData();
     }
   };
 
-  // CE Course Adding Utilities
   const handleAddCeCourse = (e) => {
     e.preventDefault();
     const newCourse = {
-      id: Date.now(),
-      name: e.target.c_name.value,
-      hours: parseFloat(e.target.c_hours.value) || 0,
-      date: e.target.c_date.value
+      id: Date.now(), name: e.target.c_name.value,
+      hours: parseFloat(e.target.c_hours.value) || 0, date: e.target.c_date.value, category: e.target.c_cat.value
     };
-    const updatedCourses = [newCourse, ...ceCourses];
-    setCeCourses(updatedCourses);
-    const completedHours = updatedCourses.reduce((sum, c) => sum + c.hours, 0);
-    setCeHours({ ...ceHours, completed: completedHours });
+    const updated = [newCourse, ...ceCourses];
+    setCeCourses(updated);
+    setCeHours({ ...ceHours, completed: updated.reduce((sum, c) => sum + c.hours, 0) });
     e.target.reset();
   };
 
-  // Expense Appending Utilities
   const handleAddExpense = (e) => {
     e.preventDefault();
-    const newExp = {
-      id: Date.now(),
-      description: e.target.e_desc.value,
-      amount: parseFloat(e.target.e_amt.value) || 0,
-      category: e.target.e_cat.value,
-      date: e.target.e_date.value
-    };
-    setExpenses([newExp, ...expenses]);
+    setExpenses([{
+      id: Date.now(), description: e.target.e_desc.value, amount: parseFloat(e.target.e_amt.value) || 0,
+      category: e.target.e_cat.value, date: e.target.e_date.value
+    }, ...expenses]);
     e.target.reset();
   };
 
-  if (checkingAuth) return <div className="bg-slate-950 min-h-screen flex items-center justify-center text-xs text-slate-500 font-bold uppercase animate-pulse">Running Secure Environment Check...</div>;
+  if (checkingAuth) return <div className="bg-slate-950 min-h-screen flex items-center justify-center text-xs text-slate-500 font-bold uppercase animate-pulse">Running Compliance Handshake...</div>;
 
   if (!isAuthenticated) {
     return (
@@ -222,218 +205,191 @@ export default function AdminDashboard() {
         <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-6 shadow-2xl text-center relative">
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 to-indigo-600" />
           <div className="flex justify-center text-blue-500"><Lock size={40} /></div>
-          <h2 className="text-lg font-black uppercase text-white tracking-tight">Security Gateway Challenge</h2>
+          <h2 className="text-lg font-black uppercase text-white tracking-tight">Brokerage Security Gateway</h2>
           <form onSubmit={handleLoginSubmit} className="space-y-4">
-            <input type="password" required placeholder="Enter Agent Passkey" value={passInput} onChange={(e) => setPassInput(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-center tracking-widest text-white outline-none focus:border-blue-600" />
-            {authError && <p className="text-[11px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 py-2 rounded-xl">Access Denied.</p>}
-            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-wider py-3.5 rounded-xl transition shadow-lg">Validate Credentials</button>
+            <input type="password" required placeholder="Enter Realtor Authentication Key" value={passInput} onChange={(e) => setPassInput(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-center tracking-widest text-white outline-none focus:border-blue-600" />
+            {authError && <p className="text-[11px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 py-2 rounded-xl">Credentials Rejected.</p>}
+            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-wider py-3.5 rounded-xl transition shadow-lg">Authenticate Identity</button>
           </form>
         </div>
       </div>
     );
   }
 
-  // FIXED COMPARISON CHECK: Sanitize strings cleanly before sorting to tabs
-  const parsedUserMatch = currentUser.trim().toLowerCase();
-  const personalDeals = data.deals.filter(d => (d.assigned_agent || '').trim().toLowerCase() === parsedUserMatch);
-  const teamDeals = data.deals.filter(d => (d.assigned_agent || '').trim().toLowerCase() !== parsedUserMatch);
-  const activeDealsDisplay = viewTab === 'mine' ? personalDeals : teamDeals;
+  // Segmenting out data arrays safely for multi-agent partition tab metrics
+  const sanitizedUser = currentUser.trim().toLowerCase();
+  const personalDeals = data.deals.filter(d => (d.assigned_agent || '').trim().toLowerCase() === sanitizedUser);
+  const teamDeals = data.deals.filter(d => (d.assigned_agent || '').trim().toLowerCase() !== sanitizedUser);
+  const baseDealsDisplay = viewTab === 'mine' ? personalDeals : teamDeals;
+
+  // Real estate categorization filtering logic
+  const listingDeals = baseDealsDisplay.filter(d => d.deal_side === 'Seller');
+  const escrowDeals = baseDealsDisplay.filter(d => d.deal_side === 'Buyer');
 
   return (
     <div className="bg-slate-950 min-h-screen text-slate-100 font-sans flex flex-col lg:flex-row">
       
-      {/* 🧭 NAVIGATION SIDEBAR (Tailored Workspace Hub) */}
-      <div className="w-full lg:w-64 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800/80 p-6 space-y-8 shrink-0">
-        <div className="space-y-1">
-          <div className="text-sm font-black tracking-tight flex items-center gap-2 uppercase"><Database className="text-blue-500" /> Elite CRM Desk</div>
-          <p className="text-[11px] text-slate-500 font-medium">Rep: <span className="text-slate-300 font-bold">{currentUser}</span></p>
+      {/* 🧭 BROKERAGE COMMAND CENTER NAVIGATION SIDEBAR */}
+      <div className="w-full lg:w-64 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800/80 p-6 space-y-8 shrink-0 flex flex-col justify-between">
+        <div className="space-y-6">
+          <div className="space-y-1">
+            <div className="text-xs font-black tracking-widest text-white flex items-center gap-2 uppercase"><Landmark className="text-blue-500" size={16} /> Brokerage Console</div>
+            <p className="text-[11px] text-slate-500 font-bold">Designated Agent: <span className="text-blue-400 block">{currentUser}</span></p>
+          </div>
+
+          <nav className="flex flex-col gap-1 text-xs font-bold text-slate-400">
+            <button onClick={() => setActiveModule('listings')} className={`w-full text-left p-3 rounded-xl transition flex items-center justify-between ${activeModule === 'listings' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}>
+              <span className="flex items-center gap-2"><Building2 size={16}/> Listing Portfolio (Sellers)</span>
+              <span className="text-[10px] opacity-70">({data.deals.filter(d => d.deal_side === 'Seller').length})</span>
+            </button>
+            <button onClick={() => setActiveModule('escrows')} className={`w-full text-left p-3 rounded-xl transition flex items-center justify-between ${activeModule === 'escrows' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}>
+              <span className="flex items-center gap-2"><Briefcase size={16}/> Escrow Pipeline (Buyers)</span>
+              <span className="text-[10px] opacity-70">({data.deals.filter(d => d.deal_side === 'Buyer').length})</span>
+            </button>
+            <button onClick={() => setActiveModule('regulatory')} className={`w-full text-left p-3 rounded-xl transition flex items-center gap-2 ${activeModule === 'regulatory' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}><FileSignature size={16}/> PA Regulatory Disclosure</button>
+            <button onClick={() => setActiveModule('ce_tracker')} className={`w-full text-left p-3 rounded-xl transition flex items-center gap-2 ${activeModule === 'ce_tracker' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}><BookOpen size={16}/> Mandatory Continuing Ed</button>
+            <button onClick={() => setActiveModule('expenses')} className={`w-full text-left p-3 rounded-xl transition flex items-center gap-2 ${activeModule === 'expenses' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}><Receipt size={16}/> Tax Deductions Ledger</button>
+            <button onClick={() => setActiveModule('team')} className={`w-full text-left p-3 rounded-xl transition flex items-center gap-2 ${activeModule === 'team' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}><Users size={16}/> Office Team Directory</button>
+          </nav>
         </div>
 
-        <nav className="flex flex-col gap-1.5 text-xs font-bold text-slate-400">
-          <button onClick={() => setActiveModule('pipeline')} className={`w-full text-left p-3 rounded-xl transition flex items-center gap-2 ${activeModule === 'pipeline' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}><Briefcase size={16}/> Transaction Pipelines</button>
-          <button onClick={() => setActiveModule('ce_tracker')} className={`w-full text-left p-3 rounded-xl transition flex items-center gap-2 ${activeModule === 'ce_tracker' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}><BookOpen size={16}/> PA Continuing Ed (CE)</button>
-          <button onClick={() => setActiveModule('expenses')} className={`w-full text-left p-3 rounded-xl transition flex items-center gap-2 ${activeModule === 'expenses' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}><Receipt size={16}/> Business Expenses</button>
-          <button onClick={() => setActiveModule('agent_mgmt')} className={`w-full text-left p-3 rounded-xl transition flex items-center gap-2 ${activeModule === 'agent_mgmt' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}><UserPlus size={16}/> Office Team Directory</button>
-        </nav>
-
-        <button onClick={handleLogout} className="w-full mt-12 bg-slate-950 border border-slate-800/80 p-2.5 rounded-xl text-[10px] font-black uppercase text-red-400 hover:bg-red-500/10 transition flex items-center justify-center gap-1.5"><LogOut size={12}/> Lock Session</button>
+        <button onClick={handleLogout} className="w-full bg-slate-950 border border-slate-800/80 p-2.5 rounded-xl text-[10px] font-black uppercase text-red-400 hover:bg-red-500/10 transition flex items-center justify-center gap-1.5"><LogOut size={12}/> Terminate Session</button>
       </div>
 
-      {/* MAIN VIEWPORT MATRIX */}
-      <div className="flex-1 p-8 space-y-8 overflow-x-hidden">
+      {/* MAIN DATA AGGREGATION VIEWPORT CONTAINER */}
+      <div className="flex-1 p-8 space-y-6 overflow-x-hidden">
         
-        {/* MODULE 1: CORE TRANSACTION PIPELINE */}
-        {activeModule === 'pipeline' && (
-          <div className="space-y-8">
-            {/* Create block */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
-              <h2 className="text-xs font-black uppercase text-blue-400 flex items-center gap-2"><Sparkles size={14}/> Provision Active Client Escrow File</h2>
-              <form onSubmit={handleCreateDeal} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-xs">
-                <input id="client" name="client" required placeholder="Client Legal Name" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
-                <input id="address" name="address" required placeholder="Property Address" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
-                <select id="stage" name="stage" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-blue-400 font-bold outline-none">
-                  <option>Mutual Acceptance</option>
-                  <option>Home Inspection Period</option>
-                  <option>Bank Appraisal Flight</option>
-                  <option>Title Clear Search</option>
-                  <option>Clear to Close 🎉</option>
-                </select>
-                <select id="deal_side" name="deal_side" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-indigo-400 font-bold outline-none">
-                  <option value="Seller">Seller (Listing)</option>
-                  <option value="Buyer">Buyer (Representation)</option>
-                </select>
-                <div className="flex gap-2">
-                  <input id="price" name="price" type="number" placeholder="Price ($)" className="w-1/2 bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
-                  <input id="comm" name="comm" type="number" step="0.1" placeholder="Comm %" defaultValue="2.5" className="w-1/2 bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
-                </div>
-                <button type="submit" className="lg:col-span-5 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase py-3 rounded-xl transition tracking-wider">Launch New Tracker Portfolio</button>
-              </form>
-            </div>
-
-            {/* Selection tab filters */}
-            <div className="flex border-b border-slate-900 gap-2">
-              <button onClick={() => setViewTab('mine')} className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${viewTab === 'mine' ? 'border-blue-500 text-blue-400 bg-blue-500/5' : 'border-transparent text-slate-500'}`}>My Desk Operations ({personalDeals.length})</button>
-              <button onClick={() => setViewTab('team')} className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${viewTab === 'team' ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' : 'border-transparent text-slate-500'}`}>Team Operational Pipeline ({teamDeals.length})</button>
-            </div>
-
-            {/* Master Data Grid Table */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 overflow-x-auto shadow-2xl">
-              {loading ? (
-                <div className="text-center py-6 text-slate-500 font-bold uppercase animate-pulse text-xs">Querying Postgres Cloud Modules...</div>
-              ) : activeDealsDisplay.length === 0 ? (
-                <div className="text-center py-10 text-slate-600 font-bold uppercase text-[11px] tracking-wider">No transactional portfolios assigned here.</div>
-              ) : (
-                <table className="w-full text-left text-xs border-collapse min-w-[900px]">
-                  <thead>
-                    <tr className="bg-slate-950 text-slate-400 uppercase font-black text-[10px] tracking-widest border-b border-slate-800">
-                      <th className="p-3">Client / Listing Context</th>
-                      <th className="p-3">Parameters</th>
-                      <th className="p-3">Milestone Escrow Phase</th>
-                      <th className="p-3">Risk Configuration</th>
-                      <th className="p-3">Representative Owner</th>
-                      <th className="p-3 text-center">Save / Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/40">
-                    {activeDealsDisplay.map((deal) => (
-                      <tr key={deal.id} className="hover:bg-slate-950/20 transition">
-                        <td className="p-3">
-                          <div className="font-black text-white text-sm">{deal.client_name}</div>
-                          <div className="text-slate-400 font-medium mt-0.5">{deal.property_address}</div>
-                        </td>
-                        <td className="p-3 space-y-1">
-                          <select id={`side-${deal.id}`} defaultValue={deal.deal_side || 'Seller'} className="bg-slate-950 border border-slate-800 text-slate-300 rounded p-1 font-bold font-mono">
-                            <option value="Seller">Seller</option>
-                            <option value="Buyer">Buyer</option>
-                          </select>
-                          <div className="flex gap-1 items-center mt-1">
-                            <input id={`price-${deal.id}`} type="number" defaultValue={deal.price_parameter || 0} className="w-16 bg-slate-950 border border-slate-800 rounded p-1 font-bold text-white text-[11px]" />
-                            <input id={`comm-${deal.id}`} type="number" step="0.1" defaultValue={deal.commission_rate || 2.5} className="w-10 bg-slate-950 border border-slate-800 rounded p-1 font-bold text-amber-400 text-[11px]" />
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <select id={`stage-${deal.id}`} defaultValue={deal.current_stage} className="bg-slate-950 border border-slate-800 rounded-lg p-2 font-bold text-blue-400 outline-none">
-                            <option>Mutual Acceptance</option>
-                            <option>Home Inspection Period</option>
-                            <option>Bank Appraisal Flight</option>
-                            <option>Title Clear Search</option>
-                            <option>Clear to Close 🎉</option>
-                          </select>
-                        </td>
-                        <td className="p-3 space-y-1">
-                          <label className="flex items-center gap-1.5 cursor-pointer text-[10px] uppercase font-black text-slate-400">
-                            <input id={`risk-${deal.id}`} type="checkbox" defaultChecked={deal.is_at_risk} className="accent-red-500 h-3.5 w-3.5 rounded border-slate-800" /> At Risk
-                          </label>
-                          <input id={`explain-${deal.id}`} placeholder="Friction summary notes..." defaultValue={deal.risk_explanation || ''} className="bg-slate-950 border border-slate-800 rounded p-1 text-[11px] text-slate-300 w-full max-w-[140px]" />
-                        </td>
-                        <td className="p-3">
-                          <select id={`agent-${deal.id}`} defaultValue={deal.assigned_agent || 'Jeremy Thieroff'} className="bg-slate-950 border border-slate-800 text-indigo-300 font-bold p-1.5 rounded-lg text-xs outline-none">
-                            {agentsList.map((a, idx) => (
-                              <option key={idx} value={a}>{a}</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center justify-center gap-2">
-                            {/* Explicit Master Row Sync Actions */}
-                            <button onClick={() => handleSaveRowData(deal.id)} className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-lg transition" title="Save Ledger Record Updates"><Save size={14}/></button>
-                            <a href={`/tracker/${deal.id}`} target="_blank" rel="noreferrer" className="bg-slate-950 border border-slate-800 p-2 rounded-lg text-blue-400 font-bold uppercase text-[10px] transition">Portal</a>
-                            <Link href={`/tracker/${deal.id}/edit`} className="bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/20 p-2 rounded-lg text-amber-500 font-bold uppercase text-[10px] transition">Edit</Link>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            {/* Inbound Intake Streams */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-black uppercase text-slate-400 flex items-center gap-1.5"><MessageSquare size={14} className="text-emerald-500" /> Universal Central Incoming Leads</h3>
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 divide-y divide-slate-800/40 shadow-xl">
-                {data.leads.length === 0 ? (
-                  <div className="text-center py-6 text-slate-600 font-bold uppercase text-[10px]">Lead buffer storage queue clear.</div>
-                ) : (
-                  data.leads.map((l) => (
-                    <div key={l.id} className="p-4 hover:bg-slate-950/20 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition">
-                      <div className="space-y-1 max-w-3xl">
-                        <span className="text-[9px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded font-black tracking-wider uppercase">{l.category}</span>
-                        <div className="font-bold text-white text-sm">{l.name} · <span className="text-slate-400 text-xs font-medium">{l.email} | {l.phone}</span></div>
-                        <p className="text-slate-400 bg-slate-950/40 border border-slate-800/40 p-2.5 rounded-lg text-xs leading-relaxed font-medium mt-1">{l.message}</p>
-                      </div>
-                      <button onClick={() => handleConvertLead(l.id)} className="bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 px-3 py-2 rounded-xl text-emerald-400 font-black uppercase text-[10px] tracking-wider transition shrink-0">Claim & Convert Client →</button>
-                    </div>
-                  ))
-                )}
+        {/* TOP LEVEL PROVISION FORM LAYER (Shared across core deal pipelines) */}
+        {(activeModule === 'listings' || activeModule === 'escrows') && (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500" />
+            <h2 className="text-xs font-black uppercase text-blue-400 flex items-center gap-1.5"><Sparkles size={14}/> Provision Exclusive Agency Representation File</h2>
+            <form onSubmit={handleCreateDeal} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-xs">
+              <input id="client" name="client" required placeholder="Client Full Legal Name" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+              <input id="address" name="address" required placeholder="Property Target Address / Location" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+              <select id="stage" name="stage" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-blue-400 font-bold outline-none">
+                <option>Mutual Acceptance</option>
+                <option>Home Inspection Period</option>
+                <option>Bank Appraisal Flight</option>
+                <option>Title Clear Search</option>
+                <option>Clear to Close 🎉</option>
+              </select>
+              <select id="deal_side" name="deal_side" defaultValue={activeModule === 'listings' ? 'Seller' : 'Buyer'} className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-indigo-400 font-bold outline-none">
+                <option value="Seller">Listing Representation (Seller Side)</option>
+                <option value="Buyer">Purchasing Representation (Buyer Side)</option>
+              </select>
+              <div className="flex gap-2">
+                <input id="price" name="price" type="number" placeholder="Price ($)" className="w-1/2 bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                <input id="comm" name="comm" type="number" step="0.1" placeholder="Comm %" defaultValue="2.5" className="w-1/2 bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
               </div>
+              <button type="submit" className="lg:col-span-5 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase py-3 rounded-xl transition text-[11px] tracking-wider">Execute Asset Provisioning Matrix</button>
+            </form>
+          </div>
+        )}
+
+        {/* 📋 WORKSPACE MODULE 1: SELLER LISTINGS PORTFOLIO */}
+        {activeModule === 'listings' && (
+          <div className="space-y-6">
+            <div className="flex border-b border-slate-900 gap-2">
+              <button onClick={() => setViewTab('mine')} className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition border-b-2 ${viewTab === 'mine' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500'}`}>My Listings ({listingDeals.length})</button>
+              <button onClick={() => setViewTab('team')} className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition border-b-2 ${viewTab === 'team' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-500'}`}>Brokerage Listings Team Inventory ({data.deals.filter(d => d.deal_side === 'Seller' && d.assigned_agent !== currentUser).length})</button>
+            </div>
+            {renderDealTable(listingDeals)}
+          </div>
+        )}
+
+        {/* 💼 WORKSPACE MODULE 2: BUYER ESCROW PIPELINE */}
+        {activeModule === 'escrows' && (
+          <div className="space-y-6">
+            <div className="flex border-b border-slate-900 gap-2">
+              <button onClick={() => setViewTab('mine')} className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition border-b-2 ${viewTab === 'mine' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500'}`}>My Active Escrows ({escrowDeals.length})</button>
+              <button onClick={() => setViewTab('team')} className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition border-b-2 ${viewTab === 'team' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-slate-500'}`}>Office Co-Brokerage Escrow Streams ({data.deals.filter(d => d.deal_side === 'Buyer' && d.assigned_agent !== currentUser).length})</button>
+            </div>
+            {renderDealTable(escrowDeals)}
+          </div>
+        )}
+
+        {/* ⚖️ WORKSPACE MODULE 3: PA REGULATORY LEAD COMPLIANCE MATRIX */}
+        {activeModule === 'regulatory' && (
+          <div className="space-y-6">
+            <div className="border-b border-slate-900 pb-3">
+              <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-2"><FileSignature className="text-blue-500"/> State Disclosure Regulation Queue</h2>
+              <p className="text-xs text-slate-400">PA State Mandate Tracker: Every substantive interaction requires a Consumer Notice check-off prior to executing written representation agreements.</p>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+              {data.leads.length === 0 ? (
+                <div className="text-center py-8 text-slate-600 font-black uppercase text-[11px]">Inbound communication streams fully authorized & audited.</div>
+              ) : (
+                <div className="divide-y divide-slate-800/40">
+                  {data.leads.map((l) => (
+                    <div key={l.id} className="p-4 hover:bg-slate-950/30 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition">
+                      <div className="space-y-1.5 max-w-4xl">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-black tracking-wider uppercase">Fiduciary Check Pending</span>
+                          <span className="text-[10px] text-slate-500 font-bold uppercase">Source Channel: {l.category}</span>
+                        </div>
+                        <div className="font-bold text-white text-sm">{l.name} · <span className="text-slate-400 text-xs font-normal">{l.email} | {l.phone}</span></div>
+                        <p className="text-slate-400 bg-slate-950/40 border border-slate-800/40 p-3 rounded-lg text-xs leading-relaxed font-medium">{l.message}</p>
+                      </div>
+                      
+                      <div className="flex md:flex-col gap-2 shrink-0 w-full md:w-auto">
+                        <button onClick={() => handleConvertLead(l.id)} className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] px-3 py-2 rounded-xl tracking-wider transition flex items-center justify-center gap-1"><UserCheck size={12}/> Log Consumer Notice & Convert</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* MODULE 2: PERSONAL CONTINUING EDUCATION (CE) TRACKER */}
+        {/* 📚 WORKSPACE MODULE 4: MANDATORY CONTINUING EDUCATION TRACKER */}
         {activeModule === 'ce_tracker' && (
-          <div className="space-y-6 max-w-4xl">
+          <div className="space-y-6 max-w-5xl">
             <div className="border-b border-slate-900 pb-3">
-              <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-2"><BookOpen className="text-blue-500"/> Personal Continuing Education Suite</h2>
-              <p className="text-xs text-slate-400">Monitor Pennsylvania State Real Estate Commission biennial compliance benchmarks dynamically.</p>
+              <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-2"><BookOpen className="text-blue-500"/> Continuous Learning & Licensing Compliance</h2>
+              <p className="text-xs text-slate-400">Track state-approved credits required by the PA Real Estate Commission to maintain active legal authorization fields.</p>
             </div>
 
-            {/* Metric Displays */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center space-y-1 shadow-md">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Hours Documented</span>
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Documented Credits</span>
                 <div className="text-2xl font-black text-emerald-400">{ceHours.completed} / {ceHours.required} HR</div>
               </div>
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center space-y-1 shadow-md">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">PA Cycle Progress</span>
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Cycle Completion Metric</span>
                 <div className="text-2xl font-black text-blue-400">{Math.round((ceHours.completed / ceHours.required) * 100)}%</div>
               </div>
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center space-y-1 shadow-md">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">State Filing Deadline</span>
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Statutory License Deadline</span>
                 <div className="text-2xl font-black text-amber-500">{ceHours.deadLine}</div>
               </div>
             </div>
 
-            {/* Add course logic */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-300">Log State-Approved Completed Course Credit</h3>
-              <form onSubmit={handleAddCeCourse} className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                <input name="c_name" required placeholder="Course Subject Title (e.g., Code of Ethics Update)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
-                <input name="c_hours" type="number" step="0.1" required placeholder="Credit Hours (e.g., 3.5)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+              <h3 className="text-xs font-black uppercase text-slate-300">Log Valid Real Estate Course Transcript</h3>
+              <form onSubmit={handleAddCeCourse} className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                <input name="c_name" required placeholder="Course Curriculum Title (e.g., RELRA Review)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                <input name="c_hours" type="number" step="0.1" required placeholder="Credits Earned (Hours)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                <select name="c_cat" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-300 outline-none">
+                  <option>Mandatory Core Modules</option>
+                  <option>Fair Housing Rules & Guidelines</option>
+                  <option>Contractual Contingency Arbitrations</option>
+                </select>
                 <div className="flex gap-2">
                   <input name="c_date" type="date" required className="w-1/2 bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-400 outline-none" />
-                  <button type="submit" className="w-1/2 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-wider rounded-xl transition">Log Credit</button>
+                  <button type="submit" className="w-1/2 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase rounded-xl transition">Record Credit</button>
                 </div>
               </form>
             </div>
 
-            {/* Course Table Registry */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl">
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="bg-slate-950 text-slate-400 uppercase font-black text-[10px] tracking-widest border-b border-slate-800">
                     <th className="p-3">Course Curriculum Module</th>
+                    <th className="p-3">Classification</th>
                     <th className="p-3">Filing Date</th>
                     <th className="p-3 text-right">Credit Value</th>
                   </tr>
@@ -442,6 +398,7 @@ export default function AdminDashboard() {
                   {ceCourses.map(c => (
                     <tr key={c.id} className="hover:bg-slate-950/20 transition">
                       <td className="p-3 text-white font-bold">{c.name}</td>
+                      <td className="p-3"><span className="text-[10px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800 text-slate-400">{c.category}</span></td>
                       <td className="p-3 text-slate-400">{c.date}</td>
                       <td className="p-3 text-right text-emerald-400 font-bold">+{c.hours} HR</td>
                     </tr>
@@ -452,34 +409,32 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* MODULE 3: INDIVIDUAL EXPENSE LEDGER TRACKER */}
+        {/* 🧾 WORKSPACE MODULE 5: TAX DEDUCTIONS & EXPENSE LEDGER */}
         {activeModule === 'expenses' && (
-          <div className="space-y-6 max-w-4xl">
+          <div className="space-y-6 max-w-5xl">
             <div className="border-b border-slate-900 pb-3">
               <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-2"><Receipt className="text-blue-500"/> Independent Business Expense Ledger</h2>
-              <p className="text-xs text-slate-400">Track structural operational expenses, marketing capital outlays, and vehicle tracking metrics for Schedule-C writeoffs.</p>
+              <p className="text-xs text-slate-400">Track professional operational metrics, marketing capital outlays, and brokerage splits to calculate 1099 quarterly Schedule-C tax write-offs.</p>
             </div>
 
-            {/* Form Input */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
               <h3 className="text-xs font-black uppercase text-slate-300">Log New Outbound Business Capital Entry</h3>
               <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
-                <input name="e_desc" required placeholder="Item Outlay Description (e.g., Supremium Keybox Dues)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                <input name="e_desc" required placeholder="Outlay Expenditure Description (e.g., Lockbox Fees)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
                 <input name="e_amt" type="number" step="0.01" required placeholder="Amount Spend ($)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
                 <select name="e_cat" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-300 outline-none">
-                  <option>MLS & Association Assessment Dues</option>
-                  <option>Marketing & Print Ads Advertising</option>
-                  <option>Automotive / Toll Travel Metrics</option>
-                  <option>Software Tools & Technology</option>
+                  <option value="MLS & Association Fees">MLS & Association Assessment Dues</option>
+                  <option value="Marketing & Advertising">Marketing & Print Ad Subscriptions</option>
+                  <option value="Software & Technology">Software Tools & Technology</option>
+                  <option value="Automotive & Travel">Automotive / Toll Travel Metrics</option>
                 </select>
                 <div className="flex gap-2">
                   <input name="e_date" type="date" required className="w-1/2 bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-400 outline-none" />
-                  <button type="submit" className="w-1/2 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-wider rounded-xl transition">Log Outlay</button>
+                  <button type="submit" className="w-1/2 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase rounded-xl transition">Log Outlay</button>
                 </div>
               </form>
             </div>
 
-            {/* List block */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl">
               <table className="w-full text-left text-xs">
                 <thead>
@@ -501,7 +456,7 @@ export default function AdminDashboard() {
                   ))}
                 </tbody>
               </table>
-              <div className="mt-4 bg-slate-950 p-3 rounded-xl border border-slate-800/60 flex justify-between items-center font-bold text-xs text-slate-400">
+              <div className="mt-4 bg-slate-950 p-4 rounded-xl border border-slate-800/60 flex justify-between items-center font-bold text-xs text-slate-400">
                 <span>Total Accumulated Operational Deductions (Current Tax Year):</span>
                 <span className="text-red-400 font-black text-sm">-${expenses.reduce((sum, e) => sum + e.amount, 0).toFixed(2)}</span>
               </div>
@@ -509,12 +464,12 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* MODULE 4: OFFICE AGENT REGISTRY MANAGEMENTS */}
-        {activeModule === 'agent_mgmt' && (
+        {/* 👥 WORKSPACE MODULE 6: OFFICE TEAM DIRECTORY PROVISIONER */}
+        {activeModule === 'team' && (
           <div className="space-y-6 max-w-xl">
             <div className="border-b border-slate-900 pb-3">
               <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-2"><UserPlus className="text-blue-500"/> Office Team Brokerage Provisioner</h2>
-              <p className="text-xs text-slate-400">Authorize additional real estate agents onto the WebUI infrastructure cleanly. Generates passkeys automatically.</p>
+              <p className="text-xs text-slate-400">Authorize additional real estate agents onto the platform. Security passkey parameters generate dynamically.</p>
             </div>
 
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
@@ -545,4 +500,84 @@ export default function AdminDashboard() {
       </div>
     </div>
   );
+
+  // SHARED REUSABLE ELEMENT: Renders fully customizable spreadsheet layout arrays with discrete inline save locks
+  function renderDealTable(dealsArray) {
+    return (
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 overflow-x-auto shadow-2xl">
+        {dealsArray.length === 0 ? (
+          <div className="text-center py-12 text-slate-500 font-bold uppercase text-[11px] tracking-wider">No transactional records logged within this filtered category scope.</div>
+        ) : (
+          <table className="w-full text-left text-xs border-collapse min-w-[1000px]">
+            <thead>
+              <tr className="bg-slate-950 text-slate-400 uppercase font-black text-[10px] tracking-widest border-b border-slate-800">
+                <th className="p-3">Client Asset Profile</th>
+                <th className="p-3">Financial Valuation Metrics</th>
+                <th className="p-3">GCI Forecast</th>
+                <th className="p-3">Escrow Contract Deadline Progress</th>
+                <th className="p-3">Risk Shield</th>
+                <th className="p-3">Representative Designation</th>
+                <th className="p-3 text-center">Save / Open</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/40 font-medium">
+              {dealsArray.map((deal) => {
+                const computedGci = (deal.price_parameter || 0) * ((deal.commission_rate || 2.5) / 100);
+                return (
+                  <tr key={deal.id} className="hover:bg-slate-950/20 transition">
+                    <td className="p-3">
+                      <div className="font-black text-white text-sm">{deal.client_name}</div>
+                      <div className="text-slate-400 font-medium mt-0.5 flex items-center gap-1"><MapPin size={12} className="text-slate-600"/>{deal.property_address}</div>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex gap-1 items-center">
+                        <input id={`price-${deal.id}`} type="number" defaultValue={deal.price_parameter || 0} className="w-20 bg-slate-950 border border-slate-800 rounded p-1.5 font-bold text-white" />
+                        <input id={`comm-${deal.id}`} type="number" step="0.1" defaultValue={deal.commission_rate || 2.5} className="w-12 bg-slate-950 border border-slate-800 rounded p-1.5 font-bold text-amber-400" />
+                        <select id={`side-${deal.id}`} defaultValue={deal.deal_side || 'Seller'} className="bg-slate-950 border border-slate-800 text-slate-500 rounded p-1.5 font-bold font-mono text-[11px]">
+                          <option value="Seller">Seller</option>
+                          <option value="Buyer">Buyer</option>
+                        </select>
+                      </div>
+                    </td>
+                    <td className="p-3 text-emerald-400 font-black text-xs">
+                      ${parseInt(computedGci || 0).toLocaleString()}
+                    </td>
+                    <td className="p-3">
+                      <select id={`stage-${deal.id}`} defaultValue={deal.current_stage} className="bg-slate-950 border border-slate-800 rounded-lg p-2 font-bold text-blue-400 outline-none cursor-pointer">
+                        <option>Mutual Acceptance</option>
+                        <option>Home Inspection Period</option>
+                        <option>Bank Appraisal Flight</option>
+                        <option>Title Clear Search</option>
+                        <option>Clear to Close 🎉</option>
+                      </select>
+                    </td>
+                    <td className="p-3 space-y-1">
+                      <label className="flex items-center gap-1.5 text-[10px] uppercase font-black text-slate-500 cursor-pointer select-none">
+                        <input id={`risk-${deal.id}`} type="checkbox" defaultChecked={deal.is_at_risk} className="accent-red-500 h-3.5 w-3.5 rounded border-slate-800" /> Contract Risk
+                      </label>
+                      <input id={`explain-${deal.id}`} placeholder="Friction summary details..." defaultValue={deal.risk_explanation || ''} className="bg-slate-950 border border-slate-800 rounded p-1 text-[11px] text-slate-400 w-full max-w-[130px]" />
+                    </td>
+                    <td className="p-3">
+                      <select id={`agent-${deal.id}`} defaultValue={deal.assigned_agent || 'Jeremy Thieroff'} className="bg-slate-950 border border-slate-800 text-indigo-300 font-bold p-1.5 rounded-lg text-xs outline-none cursor-pointer">
+                        {agentsList.map((a, idx) => (
+                          <option key={idx} value={a}>{a}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="p-3 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        {/* THE ROW LOCK DOWN SYNC BUTTON */}
+                        <button onClick={() => handleSaveRowData(deal.id)} className="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white p-2 rounded-lg border border-emerald-500/20 transition" title="Save Ledger Record Updates"><Save size={14}/></button>
+                        <Link href={`/tracker/${deal.id}/edit`} className="bg-slate-950 border border-slate-800 p-2 rounded-lg text-amber-500 font-black uppercase text-[10px] transition hover:border-slate-700">Open File</Link>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    );
+  }
 }
