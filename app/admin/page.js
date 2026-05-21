@@ -1,31 +1,53 @@
 "use client";
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Database, User, Activity, Sparkles, MessageSquare, Briefcase, ExternalLink, Settings2, Lock, Users, UserPlus, FileText, Share2, BriefcaseIcon } from 'lucide-react';
+import { Database, User, Activity, Sparkles, MessageSquare, Briefcase, ExternalLink, Settings2, Lock, Users, UserPlus, CheckCircle, Save, DollarSign, Percent, BookOpen, Receipt, ClipboardList, LogOut } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const router = useRouter();
-  
+  // Authentication & Identity States
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState(''); // Tracks active identity
-  const [viewTab, setViewTab] = useState('mine'); // 'mine' or 'team'
-  
+  const [currentUser, setCurrentUser] = useState('Jeremy Thieroff');
   const [passInput, setPassInput] = useState('');
   const [authError, setAuthError] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
+  // Dynamic Layout Navigation
+  const [activeModule, setActiveModule] = useState('pipeline'); // 'pipeline', 'agent_mgmt', 'ce_tracker', 'expenses'
+  const [viewTab, setViewTab] = useState('mine'); // 'mine' vs 'team'
+
+  // Master Core Data Storage
   const [data, setData] = useState({ leads: [], deals: [] });
   const [loading, setLoading] = useState(true);
+  
+  // Custom Dynamic Agent Registry (Stored locally or queried)
+  const [agentsList, setAgentsList] = useState(['Jeremy Thieroff', 'Team Partner']);
+
+  // PA CE Tracker Mock Data States (Per Agent Personalization)
+  const [ceHours, setCeHours] = useState({ completed: 6, required: 14, deadLine: 'May 31, 2026' });
+  const [ceCourses, setCeCourses] = useState([
+    { id: 1, name: 'PA Real Estate Core Law & Rules', hours: 3.5, date: '2025-11-12' },
+    { id: 2, name: 'Fair Housing Mandate Course', hours: 2.5, date: '2026-02-18' }
+  ]);
+
+  // Personal Business Expense Tracking States
+  const [expenses, setExpenses] = useState([
+    { id: 1, description: 'West Penn MLS Quarterly Assessment Fees', amount: 145.00, category: 'MLS Dues', date: '2026-04-01' },
+    { id: 2, description: 'Facebook Targeted Geofence Ad Runs - Open House', amount: 75.00, category: 'Marketing', date: '2026-05-10' }
+  ]);
 
   useEffect(() => {
     const sessionToken = localStorage.getItem('admin_session_active');
     const savedAgentName = localStorage.getItem('active_agent_identity');
+    const savedAgents = localStorage.getItem('crm_registered_agents');
+    
     if (sessionToken === 'true' && savedAgentName) {
       setIsAuthenticated(true);
       setCurrentUser(savedAgentName);
-      fetchClusterData();
     }
+    if (savedAgents) {
+      setAgentsList(JSON.parse(savedAgents));
+    }
+    fetchClusterData();
     setCheckingAuth(false);
   }, []);
 
@@ -37,7 +59,7 @@ export default function AdminDashboard() {
         setData({ leads: payload.leads || [], deals: payload.deals || [] });
       }
     } catch (err) {
-      console.error(err);
+      console.error("Data pipeline load fault:", err);
     } finally {
       setLoading(false);
     }
@@ -48,26 +70,48 @@ export default function AdminDashboard() {
     const token = passInput.trim().toLowerCase();
     
     if (token === "jeremyadmin2026") {
-      localStorage.setItem('admin_session_active', 'true');
-      localStorage.setItem('active_agent_identity', 'Jeremy Thieroff');
-      setCurrentUser('Jeremy Thieroff');
-      setIsAuthenticated(true);
-      fetchClusterData();
+      logUserIn('Jeremy Thieroff');
     } else if (token === "partneradmin2026") {
-      localStorage.setItem('admin_session_active', 'true');
-      localStorage.setItem('active_agent_identity', 'Team Partner');
-      setCurrentUser('Team Partner');
-      setIsAuthenticated(true);
-      fetchClusterData();
+      logUserIn('Team Partner');
+    } else if (token.endsWith('admin2026')) {
+      // Dynamic fallback processing for custom onboarded agent string passkeys
+      const parsedAgentName = token.replace('admin2026', '').replace('_', ' ');
+      const matched = agentsList.find(a => a.toLowerCase().replace(/\s+/g, '') === parsedAgentName);
+      if (matched) {
+        logUserIn(matched);
+      } else {
+        setAuthError(true);
+      }
     } else {
       setAuthError(true);
     }
+  };
+
+  const logUserIn = (agentName) => {
+    localStorage.setItem('admin_session_active', 'true');
+    localStorage.setItem('active_agent_identity', agentName);
+    setCurrentUser(agentName);
+    setIsAuthenticated(true);
+    fetchClusterData();
   };
 
   const handleLogout = () => {
     localStorage.removeItem('admin_session_active');
     localStorage.removeItem('active_agent_identity');
     setIsAuthenticated(false);
+  };
+
+  // Onboard new realtors to the operational environment dynamically from the WebUI
+  const handleAddAgentToRegistry = (e) => {
+    e.preventDefault();
+    const newName = e.target.agent_name.value.trim();
+    if (!newName || agentsList.includes(newName)) return;
+
+    const updatedList = [...agentsList, newName];
+    setAgentsList(updatedList);
+    localStorage.setItem('crm_registered_agents', JSON.stringify(updatedList));
+    alert(`Success: ${newName} added. Passkey generated: ${newName.toLowerCase().replace(/\s+/g, '_')}admin2026`);
+    e.target.reset();
   };
 
   const handleCreateDeal = async (e) => {
@@ -80,7 +124,7 @@ export default function AdminDashboard() {
       deal_side: e.target.elements.deal_side.value,
       price_parameter: parseFloat(e.target.elements.price.value) || 0,
       commission_rate: parseFloat(e.target.elements.comm.value) || 2.5,
-      assigned_agent: currentUser // Locks to creator automatically
+      assigned_agent: currentUser
     };
 
     const res = await fetch('/api/leads', {
@@ -92,7 +136,7 @@ export default function AdminDashboard() {
   };
 
   const handleConvertLead = async (leadId) => {
-    const propertyTarget = prompt("Enter Property Criteria or Target Address:");
+    const propertyTarget = prompt("Enter Target Property Escrow Location or Search Parameter Criteria:");
     if (!propertyTarget) return;
 
     const res = await fetch('/api/leads', {
@@ -109,32 +153,68 @@ export default function AdminDashboard() {
     if (res.ok) fetchClusterData();
   };
 
-  const handleReassign = async (dealId, targetAgentName) => {
+  // EXPLICIT ROW SAVE FUNCTION FOR MASTER TRANSACTION ROWS
+  const handleSaveRowData = async (dealId, rowRef) => {
+    const stage = document.getElementById(`stage-${dealId}`).value;
+    const side = document.getElementById(`side-${dealId}`).value;
+    const price = parseFloat(document.getElementById(`price-${dealId}`).value) || 0;
+    const comm = parseFloat(document.getElementById(`comm-${dealId}`).value) || 0;
+    const agent = document.getElementById(`agent-${dealId}`).value;
+    const isRisk = document.getElementById(`risk-${dealId}`).checked;
+    const explanation = document.getElementById(`explain-${dealId}`).value;
+
     const res = await fetch('/api/leads', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'reassign_agent',
         id: dealId,
-        assigned_agent: targetAgentName
+        current_stage: stage,
+        deal_side: side,
+        price_parameter: price,
+        commission_rate: comm,
+        assigned_agent: agent,
+        is_at_risk: isRisk,
+        risk_explanation: explanation
       })
     });
-    if (res.ok) fetchClusterData();
+
+    if (res.ok) {
+      alert(`✓ Database Synchronized for ID row XA-${dealId}`);
+      fetchClusterData();
+    }
   };
 
-  const handleUpdateDeal = async (id, stage, risk, explanation, side, price, comm, agent) => {
-    await fetch('/api/leads', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        id, current_stage: stage, is_at_risk: risk, risk_explanation: explanation,
-        deal_side: side, price_parameter: price, commission_rate: comm, assigned_agent: agent
-      })
-    });
-    fetchClusterData();
+  // CE Course Adding Utilities
+  const handleAddCeCourse = (e) => {
+    e.preventDefault();
+    const newCourse = {
+      id: Date.now(),
+      name: e.target.c_name.value,
+      hours: parseFloat(e.target.c_hours.value) || 0,
+      date: e.target.c_date.value
+    };
+    const updatedCourses = [newCourse, ...ceCourses];
+    setCeCourses(updatedCourses);
+    const completedHours = updatedCourses.reduce((sum, c) => sum + c.hours, 0);
+    setCeHours({ ...ceHours, completed: completedHours });
+    e.target.reset();
   };
 
-  if (checkingAuth) return <div className="bg-slate-950 min-h-screen flex items-center justify-center text-xs text-slate-500 tracking-widest font-bold uppercase animate-pulse">Running Session Authentication Loop...</div>;
+  // Expense Appending Utilities
+  const handleAddExpense = (e) => {
+    e.preventDefault();
+    const newExp = {
+      id: Date.now(),
+      description: e.target.e_desc.value,
+      amount: parseFloat(e.target.e_amt.value) || 0,
+      category: e.target.e_cat.value,
+      date: e.target.e_date.value
+    };
+    setExpenses([newExp, ...expenses]);
+    e.target.reset();
+  };
+
+  if (checkingAuth) return <div className="bg-slate-950 min-h-screen flex items-center justify-center text-xs text-slate-500 font-bold uppercase animate-pulse">Running Secure Environment Check...</div>;
 
   if (!isAuthenticated) {
     return (
@@ -144,155 +224,325 @@ export default function AdminDashboard() {
           <div className="flex justify-center text-blue-500"><Lock size={40} /></div>
           <h2 className="text-lg font-black uppercase text-white tracking-tight">Security Gateway Challenge</h2>
           <form onSubmit={handleLoginSubmit} className="space-y-4">
-            <input type="password" required placeholder="••••••••••••" value={passInput} onChange={(e) => setPassInput(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-center tracking-widest text-white outline-none focus:border-blue-600" />
+            <input type="password" required placeholder="Enter Agent Passkey" value={passInput} onChange={(e) => setPassInput(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-center tracking-widest text-white outline-none focus:border-blue-600" />
             {authError && <p className="text-[11px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 py-2 rounded-xl">Access Denied.</p>}
-            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-wider py-3.5 rounded-xl transition shadow-lg">Validate Passkey</button>
+            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-wider py-3.5 rounded-xl transition shadow-lg">Validate Credentials</button>
           </form>
         </div>
       </div>
     );
   }
 
-  // Frontend Matrix Filtering based on Tab views
-  const filteredDeals = viewTab === 'mine' 
-    ? data.deals.filter(d => d.assigned_agent === currentUser)
-    : data.deals.filter(d => d.assigned_agent !== currentUser);
+  // FIXED COMPARISON CHECK: Sanitize strings cleanly before sorting to tabs
+  const parsedUserMatch = currentUser.trim().toLowerCase();
+  const personalDeals = data.deals.filter(d => (d.assigned_agent || '').trim().toLowerCase() === parsedUserMatch);
+  const teamDeals = data.deals.filter(d => (d.assigned_agent || '').trim().toLowerCase() !== parsedUserMatch);
+  const activeDealsDisplay = viewTab === 'mine' ? personalDeals : teamDeals;
 
   return (
-    <div className="bg-slate-950 min-h-screen text-slate-100 p-8 font-sans">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="bg-slate-950 min-h-screen text-slate-100 font-sans flex flex-col lg:flex-row">
+      
+      {/* 🧭 NAVIGATION SIDEBAR (Tailored Workspace Hub) */}
+      <div className="w-full lg:w-64 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800/80 p-6 space-y-8 shrink-0">
+        <div className="space-y-1">
+          <div className="text-sm font-black tracking-tight flex items-center gap-2 uppercase"><Database className="text-blue-500" /> Elite CRM Desk</div>
+          <p className="text-[11px] text-slate-500 font-medium">Rep: <span className="text-slate-300 font-bold">{currentUser}</span></p>
+        </div>
+
+        <nav className="flex flex-col gap-1.5 text-xs font-bold text-slate-400">
+          <button onClick={() => setActiveModule('pipeline')} className={`w-full text-left p-3 rounded-xl transition flex items-center gap-2 ${activeModule === 'pipeline' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}><Briefcase size={16}/> Transaction Pipelines</button>
+          <button onClick={() => setActiveModule('ce_tracker')} className={`w-full text-left p-3 rounded-xl transition flex items-center gap-2 ${activeModule === 'ce_tracker' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}><BookOpen size={16}/> PA Continuing Ed (CE)</button>
+          <button onClick={() => setActiveModule('expenses')} className={`w-full text-left p-3 rounded-xl transition flex items-center gap-2 ${activeModule === 'expenses' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}><Receipt size={16}/> Business Expenses</button>
+          <button onClick={() => setActiveModule('agent_mgmt')} className={`w-full text-left p-3 rounded-xl transition flex items-center gap-2 ${activeModule === 'agent_mgmt' ? 'bg-blue-600 text-white' : 'hover:bg-slate-950 hover:text-white'}`}><UserPlus size={16}/> Office Team Directory</button>
+        </nav>
+
+        <button onClick={handleLogout} className="w-full mt-12 bg-slate-950 border border-slate-800/80 p-2.5 rounded-xl text-[10px] font-black uppercase text-red-400 hover:bg-red-500/10 transition flex items-center justify-center gap-1.5"><LogOut size={12}/> Lock Session</button>
+      </div>
+
+      {/* MAIN VIEWPORT MATRIX */}
+      <div className="flex-1 p-8 space-y-8 overflow-x-hidden">
         
-        {/* Banner Headers */}
-        <div className="flex justify-between items-center border-b border-slate-900 pb-6">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-black uppercase tracking-tight flex items-center gap-2"><Database className="text-blue-500" /> Multi-Agent CRM Portal</h1>
-            <p className="text-xs text-slate-400">Signed identity: <span className="text-blue-400 font-bold">{currentUser}</span> · Shared operational workspace</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button onClick={handleLogout} className="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl hover:text-white transition">Switch User</button>
-            <Link href="/" className="text-xs font-bold bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl text-slate-400 hover:text-white transition">← Exit View</Link>
-          </div>
-        </div>
-
-        {/* Form Creation block */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
-          <h2 className="text-sm font-black uppercase text-blue-400 flex items-center gap-2"><Sparkles size={16}/> Provision New Client Workspace</h2>
-          <form onSubmit={handleCreateDeal} className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 text-xs">
-            <input id="client" name="client" required placeholder="Client Name" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
-            <input id="address" name="address" required placeholder="Property Address" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
-            <select id="stage" name="stage" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-blue-400 font-bold outline-none">
-              <option>Mutual Acceptance</option>
-              <option>Home Inspection Period</option>
-              <option>Bank Appraisal Flight</option>
-              <option>Title Clear Search</option>
-              <option>Clear to Close 🎉</option>
-            </select>
-            <select id="deal_side" name="deal_side" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-indigo-400 font-bold outline-none">
-              <option>Seller (Listing)</option>
-              <option>Buyer (Purchasing)</option>
-            </select>
-            <div className="flex gap-2">
-              <input id="price" name="price" type="number" placeholder="Price ($)" className="w-1/2 bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
-              <input id="comm" name="comm" type="number" step="0.1" placeholder="Comm %" defaultValue="2.5" className="w-1/2 bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
-            </div>
-            <button type="submit" className="lg:col-span-5 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase py-3 rounded-xl transition">Launch Active Transaction Matrix</button>
-          </form>
-        </div>
-
-        {/* View Selection Layout Filter Tabs */}
-        <div className="flex border-b border-slate-900 gap-2">
-          <button onClick={() => setViewTab('mine')} className={`px-5 py-3 text-xs font-black uppercase tracking-wider transition-all border-b-2 flex items-center gap-1.5 ${viewTab === 'mine' ? 'border-blue-500 text-blue-400 bg-blue-500/5' : 'border-transparent text-slate-500 hover:text-slate-300'}`}><Briefcase size={14}/> My Active Workspace ({data.deals.filter(d => d.assigned_agent === currentUser).length})</button>
-          <button onClick={() => setViewTab('team')} className={`px-5 py-3 text-xs font-black uppercase tracking-wider transition-all border-b-2 flex items-center gap-1.5 ${viewTab === 'team' ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' : 'border-transparent text-slate-500 hover:text-slate-300'}`}><Users size={14}/> Team Funnel Stream ({data.deals.filter(d => d.assigned_agent !== currentUser).length})</button>
-        </div>
-
-        {/* Render Transaction Grid */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 overflow-x-auto shadow-2xl">
-          {filteredDeals.length === 0 ? (
-            <div className="text-center py-12 text-slate-500 font-bold uppercase tracking-widest text-[11px]">No transaction trackers active inside this filtered buffer scope.</div>
-          ) : (
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-slate-950 text-slate-400 uppercase font-black text-[10px] tracking-widest border-b border-slate-800">
-                  <th className="p-4 rounded-l-xl">Account Identity</th>
-                  <th className="p-4">Parameters</th>
-                  <th className="p-4">Milestone</th>
-                  <th className="p-4">Friction Shield</th>
-                  <th className="p-4">Owner Assignment (Transfer Link)</th>
-                  <th className="p-4 text-center rounded-r-xl">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/40">
-                {filteredDeals.map((deal) => (
-                  <tr key={deal.id} className="hover:bg-slate-950/20 transition">
-                    <td className="p-4">
-                      <div className="font-black text-white text-sm">{deal.client_name}</div>
-                      <div className="text-slate-400 font-medium mt-0.5">{deal.property_address}</div>
-                    </td>
-                    <td className="p-4 font-medium text-slate-300 space-y-1">
-                      <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wide border ${deal.deal_side?.startsWith('Seller') ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : 'bg-sky-500/10 border-sky-500/20 text-sky-400'}`}>{deal.deal_side || 'Seller'}</span>
-                      <div className="text-[11px] font-mono text-slate-400">${parseInt(deal.price_parameter || 0).toLocaleString()}</div>
-                    </td>
-                    <td className="p-4">
-                      <select defaultValue={deal.current_stage} onChange={(e) => handleUpdateDeal(deal.id, e.target.value, deal.is_at_risk, deal.risk_explanation, deal.deal_side, deal.price_parameter, deal.commission_rate, deal.assigned_agent)} className="bg-slate-950 border border-slate-800 rounded-lg p-2 font-bold text-blue-400 outline-none">
-                        <option>Mutual Acceptance</option>
-                        <option>Home Inspection Period</option>
-                        <option>Bank Appraisal Flight</option>
-                        <option>Title Clear Search</option>
-                        <option>Clear to Close 🎉</option>
-                      </select>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex gap-2 items-center">
-                        <button type="button" onClick={() => handleUpdateDeal(deal.id, deal.current_stage, !deal.is_at_risk, deal.risk_explanation, deal.deal_side, deal.price_parameter, deal.commission_rate, deal.assigned_agent)} className={`px-2 py-1.5 rounded-lg font-black uppercase text-[10px] tracking-wider border transition ${deal.is_at_risk ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-slate-950 border-slate-800/80 text-slate-500'}`}>{deal.is_at_risk ? "⚠️ Escalation" : "✓ Safe"}</button>
-                      </div>
-                    </td>
-                    {/* Programmatic Hand-off control parameter */}
-                    <td className="p-4">
-                      <select 
-                        value={deal.assigned_agent} 
-                        onChange={(e) => handleReassign(deal.id, e.target.value)}
-                        className="bg-slate-950 border border-slate-800/80 text-indigo-300 font-bold text-xs p-2 rounded-xl outline-none cursor-pointer focus:border-indigo-600"
-                      >
-                        <option value="Jeremy Thieroff">Jeremy Thieroff</option>
-                        <option value="Team Partner">Team Partner</option>
-                      </select>
-                    </td>
-                    <td className="p-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <a href={`/tracker/${deal.id}`} target="_blank" rel="noreferrer" className="bg-slate-950 hover:bg-slate-900 border border-slate-800 px-2.5 py-2 rounded-xl text-blue-400 text-[10px] font-black uppercase tracking-wider transition"><ExternalLink size={12} /> View</a>
-                        <Link href={`/tracker/${deal.id}/edit`} className="bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/20 px-2.5 py-2 rounded-xl text-amber-500 text-[10px] font-black uppercase tracking-wider transition"><Settings2 size={12} /> Process</Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        {/* Global Pipeline Qualification Intake Stream Feed */}
-        <div className="space-y-4">
-          <h2 className="text-sm font-black uppercase tracking-wider text-slate-400 flex items-center gap-2"><UserCheck size={14} className="text-emerald-500" /> Universal Incoming Leads Inbox</h2>
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 divide-y divide-slate-800/40 shadow-2xl">
-            {data.leads.length === 0 ? (
-              <div className="text-center py-8 text-slate-500 font-bold uppercase tracking-widest text-[11px]">All incoming communication files processed.</div>
-            ) : (
-              data.leads.map((l) => (
-                <div key={l.id} className="p-4 hover:bg-slate-950/30 rounded-xl transition flex justify-between items-start text-xs">
-                  <div className="space-y-2 w-full max-w-4xl">
-                    <span className="inline-block text-[9px] font-black tracking-widest uppercase px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded">{l.category}</span>
-                    <div className="text-sm font-bold text-white">{l.name} · <span className="text-slate-400 text-xs font-normal">{l.email} | {l.phone}</span></div>
-                    <div className="text-slate-400 font-medium bg-slate-950/40 p-3 rounded-lg border border-slate-800/30">{l.message}</div>
-                  </div>
-                  <button onClick={() => handleConvertLead(l.id)} className="bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border border-emerald-500/20 px-3 py-2 rounded-xl font-black uppercase text-[10px] tracking-wider transition whitespace-nowrap mt-4">Claim & Convert Client →</button>
+        {/* MODULE 1: CORE TRANSACTION PIPELINE */}
+        {activeModule === 'pipeline' && (
+          <div className="space-y-8">
+            {/* Create block */}
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
+              <h2 className="text-xs font-black uppercase text-blue-400 flex items-center gap-2"><Sparkles size={14}/> Provision Active Client Escrow File</h2>
+              <form onSubmit={handleCreateDeal} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-xs">
+                <input id="client" name="client" required placeholder="Client Legal Name" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                <input id="address" name="address" required placeholder="Property Address" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                <select id="stage" name="stage" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-blue-400 font-bold outline-none">
+                  <option>Mutual Acceptance</option>
+                  <option>Home Inspection Period</option>
+                  <option>Bank Appraisal Flight</option>
+                  <option>Title Clear Search</option>
+                  <option>Clear to Close 🎉</option>
+                </select>
+                <select id="deal_side" name="deal_side" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-indigo-400 font-bold outline-none">
+                  <option value="Seller">Seller (Listing)</option>
+                  <option value="Buyer">Buyer (Representation)</option>
+                </select>
+                <div className="flex gap-2">
+                  <input id="price" name="price" type="number" placeholder="Price ($)" className="w-1/2 bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                  <input id="comm" name="comm" type="number" step="0.1" placeholder="Comm %" defaultValue="2.5" className="w-1/2 bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
                 </div>
-              ))
-            )}
+                <button type="submit" className="lg:col-span-5 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase py-3 rounded-xl transition tracking-wider">Launch New Tracker Portfolio</button>
+              </form>
+            </div>
+
+            {/* Selection tab filters */}
+            <div className="flex border-b border-slate-900 gap-2">
+              <button onClick={() => setViewTab('mine')} className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${viewTab === 'mine' ? 'border-blue-500 text-blue-400 bg-blue-500/5' : 'border-transparent text-slate-500'}`}>My Desk Operations ({personalDeals.length})</button>
+              <button onClick={() => setViewTab('team')} className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${viewTab === 'team' ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' : 'border-transparent text-slate-500'}`}>Team Operational Pipeline ({teamDeals.length})</button>
+            </div>
+
+            {/* Master Data Grid Table */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 overflow-x-auto shadow-2xl">
+              {loading ? (
+                <div className="text-center py-6 text-slate-500 font-bold uppercase animate-pulse text-xs">Querying Postgres Cloud Modules...</div>
+              ) : activeDealsDisplay.length === 0 ? (
+                <div className="text-center py-10 text-slate-600 font-bold uppercase text-[11px] tracking-wider">No transactional portfolios assigned here.</div>
+              ) : (
+                <table className="w-full text-left text-xs border-collapse min-w-[900px]">
+                  <thead>
+                    <tr className="bg-slate-950 text-slate-400 uppercase font-black text-[10px] tracking-widest border-b border-slate-800">
+                      <th className="p-3">Client / Listing Context</th>
+                      <th className="p-3">Parameters</th>
+                      <th className="p-3">Milestone Escrow Phase</th>
+                      <th className="p-3">Risk Configuration</th>
+                      <th className="p-3">Representative Owner</th>
+                      <th className="p-3 text-center">Save / Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/40">
+                    {activeDealsDisplay.map((deal) => (
+                      <tr key={deal.id} className="hover:bg-slate-950/20 transition">
+                        <td className="p-3">
+                          <div className="font-black text-white text-sm">{deal.client_name}</div>
+                          <div className="text-slate-400 font-medium mt-0.5">{deal.property_address}</div>
+                        </td>
+                        <td className="p-3 space-y-1">
+                          <select id={`side-${deal.id}`} defaultValue={deal.deal_side || 'Seller'} className="bg-slate-950 border border-slate-800 text-slate-300 rounded p-1 font-bold font-mono">
+                            <option value="Seller">Seller</option>
+                            <option value="Buyer">Buyer</option>
+                          </select>
+                          <div className="flex gap-1 items-center mt-1">
+                            <input id={`price-${deal.id}`} type="number" defaultValue={deal.price_parameter || 0} className="w-16 bg-slate-950 border border-slate-800 rounded p-1 font-bold text-white text-[11px]" />
+                            <input id={`comm-${deal.id}`} type="number" step="0.1" defaultValue={deal.commission_rate || 2.5} className="w-10 bg-slate-950 border border-slate-800 rounded p-1 font-bold text-amber-400 text-[11px]" />
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <select id={`stage-${deal.id}`} defaultValue={deal.current_stage} className="bg-slate-950 border border-slate-800 rounded-lg p-2 font-bold text-blue-400 outline-none">
+                            <option>Mutual Acceptance</option>
+                            <option>Home Inspection Period</option>
+                            <option>Bank Appraisal Flight</option>
+                            <option>Title Clear Search</option>
+                            <option>Clear to Close 🎉</option>
+                          </select>
+                        </td>
+                        <td className="p-3 space-y-1">
+                          <label className="flex items-center gap-1.5 cursor-pointer text-[10px] uppercase font-black text-slate-400">
+                            <input id={`risk-${deal.id}`} type="checkbox" defaultChecked={deal.is_at_risk} className="accent-red-500 h-3.5 w-3.5 rounded border-slate-800" /> At Risk
+                          </label>
+                          <input id={`explain-${deal.id}`} placeholder="Friction summary notes..." defaultValue={deal.risk_explanation || ''} className="bg-slate-950 border border-slate-800 rounded p-1 text-[11px] text-slate-300 w-full max-w-[140px]" />
+                        </td>
+                        <td className="p-3">
+                          <select id={`agent-${deal.id}`} defaultValue={deal.assigned_agent || 'Jeremy Thieroff'} className="bg-slate-950 border border-slate-800 text-indigo-300 font-bold p-1.5 rounded-lg text-xs outline-none">
+                            {agentsList.map((a, idx) => (
+                              <option key={idx} value={a}>{a}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center justify-center gap-2">
+                            {/* Explicit Master Row Sync Actions */}
+                            <button onClick={() => handleSaveRowData(deal.id)} className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-lg transition" title="Save Ledger Record Updates"><Save size={14}/></button>
+                            <a href={`/tracker/${deal.id}`} target="_blank" rel="noreferrer" className="bg-slate-950 border border-slate-800 p-2 rounded-lg text-blue-400 font-bold uppercase text-[10px] transition">Portal</a>
+                            <Link href={`/tracker/${deal.id}/edit`} className="bg-blue-600/10 hover:bg-blue-600/20 border border-blue-500/20 p-2 rounded-lg text-amber-500 font-bold uppercase text-[10px] transition">Edit</Link>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Inbound Intake Streams */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-black uppercase text-slate-400 flex items-center gap-1.5"><MessageSquare size={14} className="text-emerald-500" /> Universal Central Incoming Leads</h3>
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 divide-y divide-slate-800/40 shadow-xl">
+                {data.leads.length === 0 ? (
+                  <div className="text-center py-6 text-slate-600 font-bold uppercase text-[10px]">Lead buffer storage queue clear.</div>
+                ) : (
+                  data.leads.map((l) => (
+                    <div key={l.id} className="p-4 hover:bg-slate-950/20 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition">
+                      <div className="space-y-1 max-w-3xl">
+                        <span className="text-[9px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded font-black tracking-wider uppercase">{l.category}</span>
+                        <div className="font-bold text-white text-sm">{l.name} · <span className="text-slate-400 text-xs font-medium">{l.email} | {l.phone}</span></div>
+                        <p className="text-slate-400 bg-slate-950/40 border border-slate-800/40 p-2.5 rounded-lg text-xs leading-relaxed font-medium mt-1">{l.message}</p>
+                      </div>
+                      <button onClick={() => handleConvertLead(l.id)} className="bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/20 px-3 py-2 rounded-xl text-emerald-400 font-black uppercase text-[10px] tracking-wider transition shrink-0">Claim & Convert Client →</button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* MODULE 2: PERSONAL CONTINUING EDUCATION (CE) TRACKER */}
+        {activeModule === 'ce_tracker' && (
+          <div className="space-y-6 max-w-4xl">
+            <div className="border-b border-slate-900 pb-3">
+              <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-2"><BookOpen className="text-blue-500"/> Personal Continuing Education Suite</h2>
+              <p className="text-xs text-slate-400">Monitor Pennsylvania State Real Estate Commission biennial compliance benchmarks dynamically.</p>
+            </div>
+
+            {/* Metric Displays */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center space-y-1 shadow-md">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Hours Documented</span>
+                <div className="text-2xl font-black text-emerald-400">{ceHours.completed} / {ceHours.required} HR</div>
+              </div>
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center space-y-1 shadow-md">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">PA Cycle Progress</span>
+                <div className="text-2xl font-black text-blue-400">{Math.round((ceHours.completed / ceHours.required) * 100)}%</div>
+              </div>
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center space-y-1 shadow-md">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">State Filing Deadline</span>
+                <div className="text-2xl font-black text-amber-500">{ceHours.deadLine}</div>
+              </div>
+            </div>
+
+            {/* Add course logic */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-300">Log State-Approved Completed Course Credit</h3>
+              <form onSubmit={handleAddCeCourse} className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <input name="c_name" required placeholder="Course Subject Title (e.g., Code of Ethics Update)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                <input name="c_hours" type="number" step="0.1" required placeholder="Credit Hours (e.g., 3.5)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                <div className="flex gap-2">
+                  <input name="c_date" type="date" required className="w-1/2 bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-400 outline-none" />
+                  <button type="submit" className="w-1/2 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-wider rounded-xl transition">Log Credit</button>
+                </div>
+              </form>
+            </div>
+
+            {/* Course Table Registry */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-950 text-slate-400 uppercase font-black text-[10px] tracking-widest border-b border-slate-800">
+                    <th className="p-3">Course Curriculum Module</th>
+                    <th className="p-3">Filing Date</th>
+                    <th className="p-3 text-right">Credit Value</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/40 font-medium">
+                  {ceCourses.map(c => (
+                    <tr key={c.id} className="hover:bg-slate-950/20 transition">
+                      <td className="p-3 text-white font-bold">{c.name}</td>
+                      <td className="p-3 text-slate-400">{c.date}</td>
+                      <td className="p-3 text-right text-emerald-400 font-bold">+{c.hours} HR</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* MODULE 3: INDIVIDUAL EXPENSE LEDGER TRACKER */}
+        {activeModule === 'expenses' && (
+          <div className="space-y-6 max-w-4xl">
+            <div className="border-b border-slate-900 pb-3">
+              <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-2"><Receipt className="text-blue-500"/> Independent Business Expense Ledger</h2>
+              <p className="text-xs text-slate-400">Track structural operational expenses, marketing capital outlays, and vehicle tracking metrics for Schedule-C writeoffs.</p>
+            </div>
+
+            {/* Form Input */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
+              <h3 className="text-xs font-black uppercase text-slate-300">Log New Outbound Business Capital Entry</h3>
+              <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                <input name="e_desc" required placeholder="Item Outlay Description (e.g., Supremium Keybox Dues)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                <input name="e_amt" type="number" step="0.01" required placeholder="Amount Spend ($)" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none" />
+                <select name="e_cat" className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-300 outline-none">
+                  <option>MLS & Association Assessment Dues</option>
+                  <option>Marketing & Print Ads Advertising</option>
+                  <option>Automotive / Toll Travel Metrics</option>
+                  <option>Software Tools & Technology</option>
+                </select>
+                <div className="flex gap-2">
+                  <input name="e_date" type="date" required className="w-1/2 bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-400 outline-none" />
+                  <button type="submit" className="w-1/2 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-wider rounded-xl transition">Log Outlay</button>
+                </div>
+              </form>
+            </div>
+
+            {/* List block */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-950 text-slate-400 uppercase font-black text-[10px] tracking-widest border-b border-slate-800">
+                    <th className="p-3">Description Parameter</th>
+                    <th className="p-3">Category Classification</th>
+                    <th className="p-3">Date Record</th>
+                    <th className="p-3 text-right">Debit Balance</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/40 font-medium text-xs">
+                  {expenses.map(e => (
+                    <tr key={e.id} className="hover:bg-slate-950/20 transition">
+                      <td className="p-3 font-bold text-white">{e.description}</td>
+                      <td className="p-3"><span className="bg-slate-950 text-slate-400 text-[10px] px-2 py-0.5 rounded font-bold border border-slate-800">{e.category}</span></td>
+                      <td className="p-3 text-slate-500">{e.date}</td>
+                      <td className="p-3 text-right text-red-400 font-bold">-${parseFloat(e.amount).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="mt-4 bg-slate-950 p-3 rounded-xl border border-slate-800/60 flex justify-between items-center font-bold text-xs text-slate-400">
+                <span>Total Accumulated Operational Deductions (Current Tax Year):</span>
+                <span className="text-red-400 font-black text-sm">-${expenses.reduce((sum, e) => sum + e.amount, 0).toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODULE 4: OFFICE AGENT REGISTRY MANAGEMENTS */}
+        {activeModule === 'agent_mgmt' && (
+          <div className="space-y-6 max-w-xl">
+            <div className="border-b border-slate-900 pb-3">
+              <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-2"><UserPlus className="text-blue-500"/> Office Team Brokerage Provisioner</h2>
+              <p className="text-xs text-slate-400">Authorize additional real estate agents onto the WebUI infrastructure cleanly. Generates passkeys automatically.</p>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
+              <h3 className="text-xs font-black uppercase text-slate-300">Register Onbound Team Agent Profile</h3>
+              <form onSubmit={handleAddAgentToRegistry} className="space-y-4 text-xs">
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Agent Full Corporate Name</label>
+                  <input name="agent_name" required placeholder="Enter Legal Name (e.g., Sarah Jenkins)" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white outline-none focus:border-blue-500 font-medium" />
+                </div>
+                <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-wider py-3 rounded-xl transition text-[11px]">Generate Network Passkey</button>
+              </form>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl space-y-2">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 px-2">Authorized System Representatives</h4>
+              <div className="divide-y divide-slate-800/40 text-xs font-bold text-white">
+                {agentsList.map((agent, idx) => (
+                  <div key={idx} className="p-3 hover:bg-slate-950/40 rounded-xl transition flex justify-between items-center">
+                    <span>{agent}</span>
+                    <span className="text-[10px] font-mono font-bold text-slate-500 select-all bg-slate-950 px-2 py-1 rounded border border-slate-800/80">Key: {agent.toLowerCase().replace(/\s+/g, '_')}admin2026</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
   );
 }
-import { UserCheck } from 'lucide-react';
